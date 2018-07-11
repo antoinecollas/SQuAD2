@@ -18,6 +18,8 @@ class MultiHeadAttention(nn.Module):
         self.h = h
         self.d_model = d_model
         self.d_k = self.d_v = d_model//h
+        self.dropout = nn.Dropout(dropout)
+        self.layer_norm = nn.LayerNorm(self.d_model)
         self.weight = dict()
         self.weight["w_q"] = nn.Parameter(torch.Tensor(h, self.d_model, self.d_k))
         self.weight["w_k"] = nn.Parameter(torch.Tensor(h, self.d_model, self.d_k))
@@ -45,9 +47,15 @@ class MultiHeadAttention(nn.Module):
             tensor(nb_texts, nb_tokens, d_model(=size of one word))
         '''
         nb_texts, nb_tokens, d_model = Q.shape
-        Q = Q.repeat(1, self.h, 1).view(nb_texts, self.h, nb_tokens, d_model)
-        K = K.repeat(1, self.h, 1).view(nb_texts, self.h, nb_tokens, d_model)
-        V = V.repeat(1, self.h, 1).view(nb_texts, self.h, nb_tokens, d_model)
-        heads = ScaledDotProductAttention(Q@self.weight["w_q"], K@self.weight["w_k"], V@self.weight["w_v"])
+        Q2 = Q.repeat(1, self.h, 1).view(nb_texts, self.h, nb_tokens, d_model)
+        K2 = K.repeat(1, self.h, 1).view(nb_texts, self.h, nb_tokens, d_model)
+        V2 = V.repeat(1, self.h, 1).view(nb_texts, self.h, nb_tokens, d_model)
+        heads = ScaledDotProductAttention(Q2@self.weight["w_q"], K2@self.weight["w_k"], V2@self.weight["w_v"])
         heads = torch.cat(torch.unbind(heads, dim=1), dim=2) #concatenation
-        return heads@self.weight["w_o"]
+        output = heads@self.weight["w_o"]
+        output = self.dropout(output)
+        output = output + Q
+        output = self.layer_norm(output)
+        return output
+
+# class FeedFoward(nn.Module):
