@@ -7,6 +7,37 @@ import torch.nn.functional as F
 import torch.optim as optim
 
 torch.manual_seed(1)
+PADDING_IDX = 0
+
+def positionalEncoding(nb_words, nb_dimensions):
+        X = np.arange(0, nb_words)
+        Y = np.arange(0, nb_dimensions)
+        Y, X = np.meshgrid(Y, X)
+        TEMP = 10000
+        temp1 = np.sin(X/(np.power(TEMP, (2*Y)/nb_dimensions)))
+        temp2 = np.cos(X/(np.power(TEMP, (2*Y)/nb_dimensions)))
+        Z = np.zeros((nb_words, nb_dimensions))
+        Z[:,0::2] = temp1[:,0::2]
+        Z[:,1::2] = temp2[:,1::2]
+        return torch.from_numpy(Z).type(torch.FloatTensor)
+
+class Embedding(nn.Module):
+    def __init__(self, vocabulary_size, d_model=512):
+        super(Embedding, self).__init__()
+        self.vocabulary_size = vocabulary_size
+        self.d_model = d_model
+        self.lookup_table = nn.Embedding(self.vocabulary_size, self.d_model, padding_idx=PADDING_IDX)
+    
+    def forward(self, X):
+        '''
+            Args:
+            X: tensor(nb_texts, nb_tokens)
+
+            Output:
+            tensor(nb_texts, nb_tokens, d_model(=size of one token))
+        '''
+        vectors = self.lookup_table(X)
+        return vectors + positionalEncoding(vectors.size(1), self.d_model)
 
 def ScaledDotProductAttention(Q, K, V):
     dk = K.shape[-1]
