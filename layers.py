@@ -42,7 +42,7 @@ class MultiHeadAttention(nn.Module):
             V: tensor(nb_texts, nb_tokens, d_model(=size of one word))
 
             Output:
-
+            tensor(nb_texts, nb_tokens, d_model(=size of one word))
         '''
         nb_texts, nb_tokens, d_model = Q.shape
         Q = Q.repeat(1, self.h, 1).view(nb_texts, self.h, nb_tokens, d_model)
