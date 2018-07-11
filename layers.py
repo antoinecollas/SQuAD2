@@ -20,42 +20,62 @@ class MultiHeadAttention(nn.Module):
         self.d_k = self.d_v = d_model//h
         self.dropout = nn.Dropout(dropout)
         self.layer_norm = nn.LayerNorm(self.d_model)
-        self.weight = dict()
-        self.weight["w_q"] = nn.Parameter(torch.Tensor(h, self.d_model, self.d_k))
-        self.weight["w_k"] = nn.Parameter(torch.Tensor(h, self.d_model, self.d_k))
-        self.weight["w_v"] = nn.Parameter(torch.Tensor(h, self.d_model, self.d_v))
-        self.weight["w_o"] = nn.Parameter(torch.Tensor(self.h*self.d_v, self.d_model))
-        self.reset_parameters()
 
-    def reset_parameters(self):
-        '''
-            Initialize all the parameters. It follows the initialization of linear in pytorch:
-            https://pytorch.org/docs/stable/_modules/torch/nn/modules/linear.html#Linear
-        '''
-        for k, v in self.weight.items():
-            stdv = 1. / math.sqrt(self.weight[k].size(1))
-            v.data.uniform_(-stdv, stdv)
+        #Initialize all the parameters. It follows the initialization of linear in pytorch:
+        #https://pytorch.org/docs/stable/_modules/torch/nn/modules/linear.html#Linear
+        stdv = 1. / math.sqrt(self.d_model)
+        self.W_q = nn.Parameter(torch.Tensor(h, self.d_model, self.d_k)).data.normal_(0, stdv)
+        self.W_k = nn.Parameter(torch.Tensor(h, self.d_model, self.d_k)).data.normal_(0, stdv)
+        self.W_v = nn.Parameter(torch.Tensor(h, self.d_model, self.d_v)).data.normal_(0, stdv)
+        stdv = 1. / math.sqrt(self.h*self.d_v)
+        self.W_o = nn.Parameter(torch.Tensor(self.h*self.d_v, self.d_model)).data.normal_(0, stdv)
 
     def forward(self, Q, K, V):
         '''
             Args:
-            Q: tensor(nb_texts, nb_tokens, d_model(=size of one word))
-            K: tensor(nb_texts, nb_tokens, d_model(=size of one word))
-            V: tensor(nb_texts, nb_tokens, d_model(=size of one word))
+            Q: tensor(nb_texts, nb_tokens, d_model(=size of one token))
+            K: tensor(nb_texts, nb_tokens, d_model(=size of one token))
+            V: tensor(nb_texts, nb_tokens, d_model(=size of one token))
 
             Output:
-            tensor(nb_texts, nb_tokens, d_model(=size of one word))
+            tensor(nb_texts, nb_tokens, d_model(=size of one token))
         '''
         nb_texts, nb_tokens, d_model = Q.shape
         Q2 = Q.repeat(1, self.h, 1).view(nb_texts, self.h, nb_tokens, d_model)
         K2 = K.repeat(1, self.h, 1).view(nb_texts, self.h, nb_tokens, d_model)
         V2 = V.repeat(1, self.h, 1).view(nb_texts, self.h, nb_tokens, d_model)
-        heads = ScaledDotProductAttention(Q2@self.weight["w_q"], K2@self.weight["w_k"], V2@self.weight["w_v"])
+        heads = ScaledDotProductAttention(Q2@self.W_q, K2@self.W_k, V2@self.W_v)
         heads = torch.cat(torch.unbind(heads, dim=1), dim=2) #concatenation
-        output = heads@self.weight["w_o"]
+        output = heads@self.W_o
         output = self.dropout(output)
         output = output + Q
         output = self.layer_norm(output)
         return output
 
-# class FeedFoward(nn.Module):
+class PositionWiseFeedFoward(nn.Module):
+    def __init__(self, d_model = 512, n_neurons = 2048, dropout=0.1):
+        super(PositionWiseFeedFoward, self).__init__()
+        #He initialisation
+        self.nonlinearity = 'relu'
+        gain = nn.init.calculate_gain(self.nonlinearity)
+        std = gain / math.sqrt(d_model)
+        self.W_1 = nn.Parameter(torch.Tensor(d_model, n_neurons)).data.normal_(0, std)
+        self.b_1 = nn.Parameter(torch.Tensor(n_neurons)).data.normal_(0, std)
+        std = 1 / math.sqrt(d_model)
+        self.W_2 = nn.Parameter(torch.Tensor(n_neurons, d_model)).data.normal_(0, std)
+        self.b_2 = nn.Parameter(torch.Tensor(d_model)).data.normal_(0, std)
+        self.layer_norm = nn.LayerNorm(d_model)
+        self.activation = nn.ReLU(inplace=True)
+        self.dropout = nn.Dropout(dropout)
+
+    def forward(self, X):
+        '''
+        Arg:
+            tensor(nb_texts, nb_tokens, d_model(=size of one token))
+        Output:
+            tensor(nb_texts, nb_tokens, d_model(=size of one token))
+        '''
+        nb_texts, nb_tokens, d_model = X.shape
+        b_1 = self.b_1.repeat(nb_texts, nb_tokens, 1)
+        b_2 = self.b_2.repeat(nb_texts, nb_tokens, 1)
+        return self.layer_norm(self.dropout(self.activation(X@self.W_1+b_1)@self.W_2+b_2)+X)
