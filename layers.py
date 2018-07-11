@@ -52,9 +52,9 @@ class MultiHeadAttention(nn.Module):
         output = self.layer_norm(output)
         return output
 
-class PositionWiseFeedFoward(nn.Module):
+class PositionWiseFeedForward(nn.Module):
     def __init__(self, d_model = 512, n_neurons = 2048, dropout=0.1):
-        super(PositionWiseFeedFoward, self).__init__()
+        super(PositionWiseFeedForward, self).__init__()
         #He initialisation
         self.nonlinearity = 'relu'
         gain = nn.init.calculate_gain(self.nonlinearity)
