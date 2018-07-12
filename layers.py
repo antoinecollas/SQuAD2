@@ -39,9 +39,29 @@ class Embedding(nn.Module):
         vectors = self.lookup_table(X)
         return vectors + positionalEncoding(vectors.size(1), self.d_model)
 
-def ScaledDotProductAttention(Q, K, V):
+def get_mask(X, Y):
+    '''
+        Args:
+        X: tensor(nb_texts, nb_tokens) it represents the initial sequence of tokens (before embedding)
+        Y: tensor(nb_texts, nb_tokens) it represents the second initial sequence of tokens (before embedding)
+
+        Output:
+        tensor(nb_texts, nb_tokens, nb_tokens)
+    '''
+    line = (X==PADDING_IDX).type(torch.FloatTensor)
+    line[line!=0] = float('-inf')
+    line = line.reshape(X.size(0), 1, X.size(1)).repeat(1, Y.size(1), 1).transpose(-2,-1)
+    col = (Y==PADDING_IDX).type(torch.FloatTensor)
+    col[col!=0] = float('-inf')
+    col = col.reshape(Y.size(0), 1, Y.size(1)).repeat(1, X.size(1), 1)
+    return line+col
+
+def scaled_dot_product_attention(Q, K, V, mask=None):
     dk = K.shape[-1]
-    return F.softmax(Q@(K.transpose(-2,-1))/np.sqrt(dk), dim=-2)@V
+    if mask:
+        return F.softmax((Q@(K.transpose(-2,-1))+mask)/np.sqrt(dk), dim=-2)@V
+    else:
+        return F.softmax(Q@(K.transpose(-2,-1))/np.sqrt(dk), dim=-2)@V
 
 class MultiHeadAttention(nn.Module):
     def __init__(self, h=8, d_model=512, dropout=0.1):
@@ -61,7 +81,7 @@ class MultiHeadAttention(nn.Module):
         stdv = 1. / math.sqrt(self.h*self.d_v)
         self.W_o = nn.Parameter(torch.Tensor(self.h*self.d_v, self.d_model)).data.normal_(0, stdv)
 
-    def forward(self, Q, K, V):
+    def forward(self, Q, K, V, mask=None):
         '''
             Args:
             Q: tensor(nb_texts, nb_tokens, d_model(=size of one token))
@@ -75,7 +95,7 @@ class MultiHeadAttention(nn.Module):
         Q2 = Q.repeat(1, self.h, 1).view(nb_texts, self.h, nb_tokens, d_model)
         K2 = K.repeat(1, self.h, 1).view(nb_texts, self.h, nb_tokens, d_model)
         V2 = V.repeat(1, self.h, 1).view(nb_texts, self.h, nb_tokens, d_model)
-        heads = ScaledDotProductAttention(Q2@self.W_q, K2@self.W_k, V2@self.W_v)
+        heads = scaled_dot_product_attention(Q2@self.W_q, K2@self.W_k, V2@self.W_v, mask)
         heads = torch.cat(torch.unbind(heads, dim=1), dim=2) #concatenation
         output = heads@self.W_o
         output = self.dropout(output)
