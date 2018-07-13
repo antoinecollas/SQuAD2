@@ -124,16 +124,16 @@ class MultiHeadAttention(nn.Module):
         return output
 
 class PositionWiseFeedForward(nn.Module):
-    def __init__(self, d_model = 512, n_neurons = 2048, dropout=0.1):
+    def __init__(self, d_model = 512, nb_neurons = 2048, dropout=0.1):
         super(PositionWiseFeedForward, self).__init__()
         #He initialisation
         self.nonlinearity = 'relu'
         gain = nn.init.calculate_gain(self.nonlinearity)
         std = gain / math.sqrt(d_model)
-        self.W_1 = nn.Parameter(torch.Tensor(d_model, n_neurons)).data.normal_(0, std)
-        self.b_1 = nn.Parameter(torch.Tensor(n_neurons)).data.normal_(0, std)
+        self.W_1 = nn.Parameter(torch.Tensor(d_model, nb_neurons)).data.normal_(0, std)
+        self.b_1 = nn.Parameter(torch.Tensor(nb_neurons)).data.normal_(0, std)
         std = 1 / math.sqrt(d_model)
-        self.W_2 = nn.Parameter(torch.Tensor(n_neurons, d_model)).data.normal_(0, std)
+        self.W_2 = nn.Parameter(torch.Tensor(nb_neurons, d_model)).data.normal_(0, std)
         self.b_2 = nn.Parameter(torch.Tensor(d_model)).data.normal_(0, std)
         self.layer_norm = nn.LayerNorm(d_model)
         self.activation = nn.ReLU(inplace=True)
