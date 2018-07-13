@@ -5,9 +5,9 @@ import torch.autograd as autograd
 import torch.nn as nn
 import torch.nn.functional as F
 import torch.optim as optim
+from constants import *
 
-torch.manual_seed(1)
-PADDING_IDX = 0
+# torch.manual_seed(1)
 
 def positionalEncoding(nb_words, nb_dimensions):
         X = np.arange(0, nb_words)
@@ -38,12 +38,16 @@ class Embedding(nn.Module):
         '''
         vectors = self.lookup_table(X)
         return vectors + positionalEncoding(vectors.size(1), self.d_model)
+    
+    def get_weights(self):
+        return self.lookup_table.weight.data
 
-def get_mask(X, Y):
+def get_mask(X, Y, avoid_subsequent_info=False):
     '''
         Args:
         X: tensor(nb_texts, nb_tokens) it represents the initial sequence of tokens (before embedding)
         Y: tensor(nb_texts, nb_tokens) it represents the second initial sequence of tokens (before embedding)
+        avoid_subsequent_info: bool: used for the first attention in decoding layer
 
         Output:
         tensor(nb_texts, nb_tokens, nb_tokens)
@@ -54,14 +58,26 @@ def get_mask(X, Y):
     col = (Y==PADDING_IDX).type(torch.FloatTensor)
     col[col!=0] = float('-inf')
     col = col.reshape(Y.size(0), 1, Y.size(1)).repeat(1, X.size(1), 1)
-    return line+col
+    mask1 = line+col
+    if avoid_subsequent_info:
+        mask2_shape = (X.size(0), X.size(1), X.size(1))
+        mask2 = np.triu(np.ones(mask2_shape), k=1)
+        mask2 = torch.from_numpy(mask2).type(torch.FloatTensor)
+        mask2[mask2!=0] = float('-inf')
+        mask1+=mask2
+    return mask1
 
 def scaled_dot_product_attention(Q, K, V, mask=None):
     dk = K.shape[-1]
-    if mask:
-        return F.softmax((Q@(K.transpose(-2,-1))+mask)/np.sqrt(dk), dim=-2)@V
+    if mask is not None:
+        output = F.softmax((Q@(K.transpose(-2,-1))+mask)/np.sqrt(dk), dim=-1)
+        #if a line contains only -inf (before softmax), then after softmax it contains only nan (because it does a division by 0)
+        #we replace nan by 0
+        output[output!=output] = 0
+        output = output@V
     else:
-        return F.softmax(Q@(K.transpose(-2,-1))/np.sqrt(dk), dim=-2)@V
+        output = F.softmax(Q@(K.transpose(-2,-1))/np.sqrt(dk), dim=-1)@V
+    return output
 
 class MultiHeadAttention(nn.Module):
     def __init__(self, h=8, d_model=512, dropout=0.1):
@@ -95,7 +111,11 @@ class MultiHeadAttention(nn.Module):
         Q2 = Q.repeat(1, self.h, 1).view(nb_texts, self.h, nb_tokens, d_model)
         K2 = K.repeat(1, self.h, 1).view(nb_texts, self.h, nb_tokens, d_model)
         V2 = V.repeat(1, self.h, 1).view(nb_texts, self.h, nb_tokens, d_model)
-        heads = scaled_dot_product_attention(Q2@self.W_q, K2@self.W_k, V2@self.W_v, mask)
+        if mask is not None:
+            mask = mask.repeat(1, self.h, 1).view(nb_texts, self.h, nb_tokens, nb_tokens)
+            heads = scaled_dot_product_attention(Q2@self.W_q, K2@self.W_k, V2@self.W_v, mask)
+        else:
+            heads = scaled_dot_product_attention(Q2@self.W_q, K2@self.W_k, V2@self.W_v)
         heads = torch.cat(torch.unbind(heads, dim=1), dim=2) #concatenation
         output = heads@self.W_o
         output = self.dropout(output)
