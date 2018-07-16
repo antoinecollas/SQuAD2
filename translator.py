@@ -20,41 +20,69 @@ class Translator():
         '''
         Arg:
             X: phrases to translate: tensor(nb_texts, nb_tokens)
-            X: translations: tensor(nb_texts, nb_tokens)
-        Output:
-            tensor(nb_texts, nb_tokens, d_model(=size of one token))
-            tensor(nb_texts, vocabulary_size)
-            tensor(nb_texts, nb_tokens_out)
+            Y: translations: tensor(nb_texts, nb_tokens)
         '''
         nb_texts = X.size(0)
         nb_batches = nb_texts//batch_size
         for k in range(nb_epochs):
-            print("Epoch:",k)
+            print("=======Epoch:=======",k)
             for l in range(nb_batches):
                 print("Batch:",l)
                 X_batch = X[l*batch_size:(l+1)*batch_size]
                 Y_batch = Y[l*batch_size:(l+1)*batch_size]
-                targets = torch.zeros(batch_size, self.Transformer.nb_tokens_out).type(torch.LongTensor)
+                translation = torch.zeros(batch_size, self.Transformer.nb_tokens_out).type(torch.LongTensor)
                 for i in range(batch_size):
-                    targets[i][0] = START_OF_SENTENCE_IDX
+                    translation[i][0] = START_OF_SENTENCE_IDX
                 j=0
-                while targets[0][j]!=0:
-                    j+=1
-                for i in range(batch_size):
-                    targets[i][j] = Y_batch[i][j]
-                    # print(output[i])
-                    # print(targets[i])
+                running_loss = 0
                 for i in range(1, self.Transformer.nb_tokens_out):
-                    output = self.Transformer(X_batch, targets)
-                    output = output[:,i]
-                    targets = targets[:,i]
+                    # print("token n°", i)
+                    # print("X_batch[0]", X_batch[0])
+                    # print("translation[0]", translation[0])
+                    output = self.Transformer(X_batch, translation)
+                    target = Y_batch[:,i]
+                    # print("target=",target)
                     self.optimizer.zero_grad()
-                    print(output)
-                    print(targets)
-                    loss = self.criterion(output, targets)
+                    loss = self.criterion(output, target)
                     loss.backward()
                     self.optimizer.step()
-                    running_loss = loss.item()
-                    print(running_loss)
+                    running_loss += loss.item()
                     values, output = torch.max(output, dim=-1)
-        return phrases
+                    # print(output)
+                    while translation[0][j]!=0:
+                        j=j+1
+                    for i in range(batch_size):
+                        translation[i][j] = Y_batch[i][j]
+                    # print(output[i])
+                    # print(targets[i])
+                    # print("")
+                print(running_loss/(self.Transformer.nb_tokens_out-1))
+    
+    def predict(self, X):
+        '''
+        Arg:
+            X: phrases to translate: tensor(nb_texts, nb_tokens)
+        '''
+        nb_texts = X.size(0)
+        targets = torch.zeros(nb_texts, self.Transformer.nb_tokens_out).type(torch.LongTensor)
+        for i in range(nb_texts):
+            targets[i][0] = START_OF_SENTENCE_IDX
+        j=1
+        running_loss = 0
+        for i in range(1, self.Transformer.nb_tokens_out):
+            output = self.Transformer(X, targets)
+            # output = output[:,i]
+            targets_temp = targets[:,i]
+            self.optimizer.zero_grad()
+            loss = self.criterion(output, targets_temp)
+            loss.backward()
+            self.optimizer.step()
+            running_loss += loss.item()
+            # print(output)
+            values, output = torch.max(output, dim=-1)
+            for k in range(nb_texts):
+                targets[k][j] = output[k]
+            j=j+1
+            # print(output[i])
+            # print(targets[i])
+        return targets

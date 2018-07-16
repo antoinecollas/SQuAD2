@@ -52,19 +52,22 @@ def get_mask(X, Y, avoid_subsequent_info=False):
         Output:
         tensor(nb_texts, nb_tokens, nb_tokens)
     '''
-    line = (X==PADDING_IDX).type(torch.FloatTensor)
-    line[line!=0] = float('-inf')
-    line = line.reshape(X.size(0), 1, X.size(1)).repeat(1, Y.size(1), 1).transpose(-2,-1)
+    # line = (X==PADDING_IDX).type(torch.FloatTensor)
+    # line[line!=0] = float('-inf')
+    # line = line.reshape(X.size(0), 1, X.size(1)).repeat(1, Y.size(1), 1).transpose(-2,-1)
     col = (Y==PADDING_IDX).type(torch.FloatTensor)
     col[col!=0] = float('-inf')
+    # print(col.shape)
+    # print(X.shape)
+    # print(Y.shape)
     col = col.reshape(Y.size(0), 1, Y.size(1)).repeat(1, X.size(1), 1)
-    mask1 = line+col
+    mask1 = col
     if avoid_subsequent_info:
         mask2_shape = (X.size(0), X.size(1), X.size(1))
         mask2 = np.triu(np.ones(mask2_shape), k=1)
         mask2 = torch.from_numpy(mask2).type(torch.FloatTensor)
         mask2[mask2!=0] = float('-inf')
-        mask1+=mask2
+        mask1 = mask1+mask2
     return mask1
 
 def scaled_dot_product_attention(Q, K, V, mask=None):
@@ -73,7 +76,7 @@ def scaled_dot_product_attention(Q, K, V, mask=None):
         output = F.softmax((Q@(K.transpose(-2,-1))+mask)/np.sqrt(dk), dim=-1)
         #if a line contains only -inf (before softmax), then after softmax it contains only nan (because it does a division by 0)
         #we replace nan by 0
-        output[output!=output] = 0
+        # output[output!=output] = 0
         output = output@V
     else:
         output = F.softmax(Q@(K.transpose(-2,-1))/np.sqrt(dk), dim=-1)@V
@@ -91,11 +94,12 @@ class MultiHeadAttention(nn.Module):
         #Initialize all the parameters. It follows the initialization of linear in pytorch:
         #https://pytorch.org/docs/stable/_modules/torch/nn/modules/linear.html#Linear
         stdv = 1. / math.sqrt(self.d_model)
-        self.W_q = nn.Parameter(torch.Tensor(h, self.d_model, self.d_k)).data.normal_(0, stdv)
-        self.W_k = nn.Parameter(torch.Tensor(h, self.d_model, self.d_k)).data.normal_(0, stdv)
-        self.W_v = nn.Parameter(torch.Tensor(h, self.d_model, self.d_v)).data.normal_(0, stdv)
+        create_tensor = lambda size, std: nn.Parameter(nn.init.normal_(torch.zeros(size, requires_grad=True), mean=0, std=std))
+        self.W_q = create_tensor((h, self.d_model, self.d_k), stdv)
+        self.W_k = create_tensor((h, self.d_model, self.d_k), stdv)
+        self.W_v = create_tensor((h, self.d_model, self.d_v), stdv)
         stdv = 1. / math.sqrt(self.h*self.d_v)
-        self.W_o = nn.Parameter(torch.Tensor(self.h*self.d_v, self.d_model)).data.normal_(0, stdv)
+        self.W_o = create_tensor((self.h*self.d_v, self.d_model), stdv)
 
     def forward(self, Q, K, V, mask=None):
         '''
@@ -130,13 +134,14 @@ class PositionWiseFeedForward(nn.Module):
         self.nonlinearity = 'relu'
         gain = nn.init.calculate_gain(self.nonlinearity)
         std = gain / math.sqrt(d_model)
-        self.W_1 = nn.Parameter(torch.Tensor(d_model, nb_neurons)).data.normal_(0, std)
-        self.b_1 = nn.Parameter(torch.Tensor(nb_neurons)).data.normal_(0, std)
+        create_tensor = lambda size, std: nn.Parameter(nn.init.normal_(torch.zeros(size, requires_grad=True), mean=0, std=std))
+        self.W_1 = create_tensor((d_model, nb_neurons), std)
+        self.b_1 = create_tensor(nb_neurons, std)
         std = 1 / math.sqrt(d_model)
-        self.W_2 = nn.Parameter(torch.Tensor(nb_neurons, d_model)).data.normal_(0, std)
-        self.b_2 = nn.Parameter(torch.Tensor(d_model)).data.normal_(0, std)
+        self.W_2 = create_tensor((nb_neurons, d_model), std)
+        self.b_2 = create_tensor(d_model, std)
         self.layer_norm = nn.LayerNorm(d_model)
-        self.activation = nn.ReLU(inplace=True)
+        self.activation = nn.ReLU()
         self.dropout = nn.Dropout(dropout)
 
     def forward(self, X):

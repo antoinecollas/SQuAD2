@@ -20,7 +20,7 @@ class Transformer(nn.Module):
         self.Embedding = Embedding(vocabulary_size_in, d_model)
         self.Encoder = Encoder(nb_layers, nb_heads, d_model, nb_neurons, dropout)
         self.Decoder = Decoder(nb_layers, nb_heads, d_model, nb_neurons, dropout)
-        self.Linear = nn.Linear(d_model, vocabulary_size_out, bias=False)
+        self.Linear = nn.Linear(nb_tokens_in*d_model, vocabulary_size_out, bias=False)
 
     def forward(self, src, target):
         '''
@@ -39,6 +39,7 @@ class Transformer(nn.Module):
         mask2 = get_mask(target,src)
         output = self.Embedding(target)
         output = self.Decoder(enc, output, mask1, mask2)
+        output = output.view(output.shape[0], -1)
         output = self.Linear(output)
         # output = F.softmax(output, dim=-1)
         return output
