@@ -14,7 +14,8 @@ class Translator():
     def __init__(self, vocabulary_size_in, vocabulary_size_out, nb_tokens_in, nb_tokens_out, nb_layers=6, nb_heads=8, d_model=512, nb_neurons = 2048, dropout=0.1):
         self.Transformer = Transformer(vocabulary_size_in, vocabulary_size_out, nb_tokens_in, nb_tokens_out, nb_layers, nb_heads, d_model, nb_neurons, dropout)
         self.criterion = nn.CrossEntropyLoss()
-        self.optimizer = optim.SGD(self.Transformer.parameters(), lr=0.001, momentum=0.9)
+        # print(list(self.Transformer.parameters()))
+        self.optimizer = optim.Adam(self.Transformer.parameters(), lr=0.01, betas=(0.9,0.98), eps=1e-9)
 
     def train(self, X, Y, nb_epochs=50, batch_size=10):
         '''

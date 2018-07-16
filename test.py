@@ -62,5 +62,5 @@ if True:
     # tr = Transformer(100,100,5,5,nb_heads=2)
     # print(tr(input1, input2))
     tr = Translator(20,20,5,5,nb_layers=1,nb_heads=2,d_model=32,nb_neurons=64)
-    tr.train(input1, input2, nb_epochs=100, batch_size=2)
+    tr.train(input1, input2, nb_epochs=20, batch_size=2)
     print(tr.predict(input1))
