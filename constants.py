@@ -13,6 +13,6 @@ MAX_VOCAB = 100000
 MIN_FREQ = 0
 
 #constants for training
-NB_EPOCH = 10
+NB_EPOCH = 5
 BATCH_SIZE = 10
 MAX_SEQ = 100

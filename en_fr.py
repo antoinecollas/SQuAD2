@@ -51,13 +51,13 @@ texts_fr, itos_fr, stoi_fr = prepare_texts(FRENCH_FILENAME, lang='fr')
 batches_idx = list(SortishSampler(texts_en, key=lambda x: len(texts_en[x]), bs=BATCH_SIZE))
 
 nb_texts = len(texts_en)
-nb_batches = (nb_texts//BATCH_SIZE)+1
+nb_batches = nb_texts//BATCH_SIZE
 for k in range(NB_EPOCH):
     print("=======Epoch:=======",k)
     for l in range(nb_batches):
         print("Batch:",l)
         X_batch = torch.from_numpy(pad_batch(texts_en[batches_idx[l*BATCH_SIZE:(l+1)*BATCH_SIZE]])).type(torch.LongTensor)
         Y_batch = torch.from_numpy(pad_batch(texts_fr[batches_idx[l*BATCH_SIZE:(l+1)*BATCH_SIZE]], length=MAX_SEQ)).type(torch.LongTensor)
-        tr = Translator(vocabulary_size_in=len(itos_en),vocabulary_size_out=len(itos_fr),max_seq=MAX_SEQ,nb_layers=1,nb_heads=2,d_model=32,nb_neurons=64)
+        tr = Translator(vocabulary_size_in=len(stoi_en),vocabulary_size_out=len(stoi_fr),max_seq=MAX_SEQ,nb_layers=2,nb_heads=2,d_model=32,nb_neurons=64)
         tr.train(X_batch, Y_batch)
 
