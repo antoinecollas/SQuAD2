@@ -111,12 +111,14 @@ class MultiHeadAttention(nn.Module):
             Output:
             tensor(nb_texts, nb_tokens, d_model(=size of one token))
         '''
-        nb_texts, nb_tokens, d_model = Q.shape
-        Q2 = Q.repeat(1, self.h, 1).view(nb_texts, self.h, nb_tokens, d_model)
-        K2 = K.repeat(1, self.h, 1).view(nb_texts, self.h, nb_tokens, d_model)
-        V2 = V.repeat(1, self.h, 1).view(nb_texts, self.h, nb_tokens, d_model)
+        nb_texts, V_nb_tokens, d_model = V.shape
+        V2 = V.repeat(1, self.h, 1).view(nb_texts, self.h, V_nb_tokens, d_model)
+        nb_texts, Q_nb_tokens, d_model = Q.shape
+        Q2 = Q.repeat(1, self.h, 1).view(nb_texts, self.h, Q_nb_tokens, d_model)
+        nb_texts, K_nb_tokens, d_model = K.shape
+        K2 = K.repeat(1, self.h, 1).view(nb_texts, self.h, K_nb_tokens, d_model)
         if mask is not None:
-            mask = mask.repeat(1, self.h, 1).view(nb_texts, self.h, nb_tokens, nb_tokens)
+            mask = mask.repeat(1, self.h, 1).view(nb_texts, self.h, Q_nb_tokens, K_nb_tokens)
             heads = scaled_dot_product_attention(Q2@self.W_q, K2@self.W_k, V2@self.W_v, mask)
         else:
             heads = scaled_dot_product_attention(Q2@self.W_q, K2@self.W_k, V2@self.W_v)
@@ -139,7 +141,7 @@ class PositionWiseFeedForward(nn.Module):
         self.b_1 = create_tensor(nb_neurons, std)
         std = 1 / math.sqrt(d_model)
         self.W_2 = create_tensor((nb_neurons, d_model), std)
-        self.b_2 = create_tensor(d_model, std)
+        self.b_2 = create_tensor((d_model), std)
         self.layer_norm = nn.LayerNorm(d_model)
         self.activation = nn.ReLU()
         self.dropout = nn.Dropout(dropout)

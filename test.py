@@ -45,7 +45,7 @@ if False:
 
 if False:
     print("====TEST Transformer====")
-    model = Transformer(vocabulary_size_in=10, vocabulary_size_out=10, nb_tokens_in=5, nb_tokens_out=5, nb_layers=2, nb_heads=2, d_model=12, nb_neurons = 24, dropout=0.1)
+    model = Transformer(vocabulary_size_in=10, vocabulary_size_out=10, nb_tokens_in=5, max_seq=5, nb_layers=2, nb_heads=2, d_model=12, nb_neurons = 24, dropout=0.1)
     X = torch.Tensor([[1,2,3,4,2],[1,3,2,0,0]]).type(torch.LongTensor)
     target = torch.Tensor([[1,0,0,0,0],[2,0,0,0,0]]).type(torch.LongTensor)
     output = model(X,target)
