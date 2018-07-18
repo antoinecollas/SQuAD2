@@ -1,6 +1,6 @@
 from translator import *
 import sys
-sys.path.append("../../fastai/")
+sys.path.append("../fastai/")
 from fastai.text import *
 from constants import *
 
