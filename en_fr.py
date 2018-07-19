@@ -52,12 +52,16 @@ batches_idx = list(SortishSampler(texts_en, key=lambda x: len(texts_en[x]), bs=B
 
 nb_texts = len(texts_en)
 nb_batches = nb_texts//BATCH_SIZE
+
+tr = Translator(vocabulary_size_in=len(stoi_en),vocabulary_size_out=len(stoi_fr),max_seq=MAX_SEQ,nb_layers=NB_LAYERS,nb_heads=NB_HEADS,d_model=D_MODEL,nb_neurons=NB_NEURONS)
+tr.train(True)
+tr.to(DEVICE)
+
 for k in range(NB_EPOCH):
     print("=======Epoch:=======",k)
     for l in range(nb_batches):
         print("Batch:",l)
-        X_batch = torch.from_numpy(pad_batch(texts_en[batches_idx[l*BATCH_SIZE:(l+1)*BATCH_SIZE]])).type(torch.LongTensor)
-        Y_batch = torch.from_numpy(pad_batch(texts_fr[batches_idx[l*BATCH_SIZE:(l+1)*BATCH_SIZE]], length=MAX_SEQ)).type(torch.LongTensor)
-        tr = Translator(vocabulary_size_in=len(stoi_en),vocabulary_size_out=len(stoi_fr),max_seq=MAX_SEQ,nb_layers=2,nb_heads=2,d_model=32,nb_neurons=64)
-        tr.train(X_batch, Y_batch)
+        X_batch = torch.from_numpy(pad_batch(texts_en[batches_idx[l*BATCH_SIZE:(l+1)*BATCH_SIZE]])).type(torch.LongTensor).to(DEVICE)
+        Y_batch = torch.from_numpy(pad_batch(texts_fr[batches_idx[l*BATCH_SIZE:(l+1)*BATCH_SIZE]], length=MAX_SEQ)).type(torch.LongTensor).to(DEVICE)
+        tr.fit(X_batch, Y_batch)
 

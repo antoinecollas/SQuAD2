@@ -19,7 +19,7 @@ def positionalEncoding(nb_words, nb_dimensions):
         Z = np.zeros((nb_words, nb_dimensions))
         Z[:,0::2] = temp1[:,0::2]
         Z[:,1::2] = temp2[:,1::2]
-        return torch.from_numpy(Z).type(torch.FloatTensor)
+        return torch.from_numpy(Z).type(torch.FloatTensor).to(DEVICE)
 
 class Embedding(nn.Module):
     def __init__(self, vocabulary_size, d_model=512):
@@ -68,7 +68,7 @@ def get_mask(X, Y, avoid_subsequent_info=False):
         mask2 = torch.from_numpy(mask2).type(torch.FloatTensor)
         mask2[mask2!=0] = float('-inf')
         mask1 = mask1+mask2
-    return mask1
+    return mask1.to(DEVICE)
 
 def scaled_dot_product_attention(Q, K, V, mask=None):
     dk = K.shape[-1]
