@@ -34,22 +34,30 @@ class Translator(nn.Module):
         translation = torch.zeros(batch_size, self.Transformer.max_seq).type(torch.LongTensor).to(DEVICE)
         for i in range(batch_size):
             translation[i][0] = BOS_IDX
-        j=0
+        j=1
         running_loss = 0
         for i in range(1, self.Transformer.max_seq):
+            # print("i=",i)
+            # print("X=", X[0])
+            # print("Y=", Y[0])
+            # print("translation=", translation[0])
             output = self.Transformer(X, translation)
             output = output.contiguous().view(-1, output.size(-1))
-            target = Y.contiguous().view(-1)
+            target = Y.contiguous().clone()
+            target[:,i:] = 0
+            target = target.view(-1)
             self.optimizer.zero_grad()
+            # print("output=", output[1])
+            # print("target[:10]=", target[:10])
             loss = self.criterion(output, target)
             loss.backward()
             self.optimizer.step()
             running_loss += loss.item()
             # values, output = torch.max(output, dim=-1)
-            while translation[0][j]!=0:
-                j=j+1
-            for i in range(batch_size):
-                translation[i][j] = Y[i][j]
+            # while translation[0][j]!=0:
+            for k in range(batch_size):
+                translation[k][j] = Y[k][j-1]
+            j=j+1
         print(running_loss/(self.Transformer.max_seq-1))
     
     def predict(self, X):

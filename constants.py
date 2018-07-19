@@ -18,7 +18,7 @@ MIN_FREQ = 0
 #constants for training
 ENGLISH_FILENAME = "training-giga-fren/giga-fren.release2.fixed_100.en"
 FRENCH_FILENAME = "training-giga-fren/giga-fren.release2.fixed_100.fr"
-NB_EPOCH = 100
+NB_EPOCH = 20
 BATCH_SIZE = 50
 MAX_SEQ = 100
 
@@ -27,7 +27,7 @@ NCPUS=os.cpu_count()
 DEVICE = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
 #model
-PRETRAIN = True
+PRETRAIN = False
 PATH_WEIGHTS = "./weights"
 
 #hyperparameters
