@@ -22,7 +22,7 @@ MAX_SEQ = 100
 DEVICE = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
 #hyperparameters
-NB_LAYERS = 4
+NB_LAYERS = 2
 NB_HEADS = 4
-D_MODEL = 256
-NB_NEURONS = 512
+D_MODEL = 128
+NB_NEURONS = 256
