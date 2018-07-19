@@ -121,6 +121,7 @@ else:
     tr.load_state_dict(torch.load(PATH_WEIGHTS))
     tr.to(DEVICE)
 
+
 print("=======PREDICTION=======")
 l=0
 X_batch = torch.from_numpy(pad_batch(texts_en[batches_idx[l*BATCH_SIZE:(l+1)*BATCH_SIZE]])).type(torch.LongTensor).to(DEVICE)
