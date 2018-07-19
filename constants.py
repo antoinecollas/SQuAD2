@@ -18,7 +18,7 @@ MIN_FREQ = 0
 #constants for training
 ENGLISH_FILENAME = "training-giga-fren/giga-fren.release2.fixed_100.en"
 FRENCH_FILENAME = "training-giga-fren/giga-fren.release2.fixed_100.fr"
-NB_EPOCH = 10
+NB_EPOCH = 100
 BATCH_SIZE = 50
 MAX_SEQ = 100
 

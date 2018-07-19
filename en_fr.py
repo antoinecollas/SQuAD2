@@ -22,6 +22,15 @@ class Toktoi(object):
     def __call__(self, tok):
         return toktoi(self.stoi, tok)
 
+def itotok(itos, i):
+    return [itos[o] for o in i]
+
+class Itotok(object):
+    def __init__(self, itos):
+        self.itos = itos
+    def __call__(self, i):
+        return itotok(self.itos, i)
+
 def unknow_word():
     return UNKNOW_WORD_IDX
 
@@ -115,6 +124,9 @@ else:
     tr = Translator(vocabulary_size_in=len(stoi_en),vocabulary_size_out=len(stoi_fr),max_seq=MAX_SEQ,nb_layers=NB_LAYERS,nb_heads=NB_HEADS,d_model=D_MODEL,nb_neurons=NB_NEURONS)
     tr.load_state_dict(torch.load(PATH_WEIGHTS))
     tr.to(DEVICE)
-    prediction = tr.predict(X_batch)
-    print(prediction)
-    print(Y_batch)
+prediction = tr.predict(X_batch).to(torch.device("cpu"))
+translations = np.array(Pool(NCPUS).map(Itotok(itos_fr), list(prediction)))
+Y_batch = np.array(Pool(NCPUS).map(Itotok(itos_fr), list(Y_batch.to(torch.device("cpu")))))
+print(translations[:,:10])
+print("=======ORIGINAL=======")
+print(Y_batch[:,:10])
