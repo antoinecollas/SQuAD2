@@ -16,10 +16,10 @@ MAX_VOCAB = 100000
 MIN_FREQ = 0
 
 #constants for training
-ENGLISH_FILENAME = "training-giga-fren/giga-fren.release2.fixed_100.en"
-FRENCH_FILENAME = "training-giga-fren/giga-fren.release2.fixed_100.fr"
+ENGLISH_FILENAME = "training-giga-fren/giga-fren.release2.fixed_100_000.en"
+FRENCH_FILENAME = "training-giga-fren/giga-fren.release2.fixed_100_000.fr"
 NB_EPOCH = 20
-BATCH_SIZE = 50
+BATCH_SIZE = 100
 MAX_SEQ = 100
 
 #hardware

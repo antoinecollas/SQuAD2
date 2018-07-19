@@ -117,16 +117,19 @@ if not PRETRAIN:
             tr.fit(X_batch, Y_batch)
     torch.save(tr.state_dict(), PATH_WEIGHTS)
 else:
-    print("=======PREDICTION=======")
-    l=0
-    X_batch = torch.from_numpy(pad_batch(texts_en[batches_idx[l*BATCH_SIZE:(l+1)*BATCH_SIZE]])).type(torch.LongTensor).to(DEVICE)
-    Y_batch = torch.from_numpy(pad_batch(texts_fr[batches_idx[l*BATCH_SIZE:(l+1)*BATCH_SIZE]], length=MAX_SEQ)).type(torch.LongTensor).to(DEVICE)
     tr = Translator(vocabulary_size_in=len(stoi_en),vocabulary_size_out=len(stoi_fr),max_seq=MAX_SEQ,nb_layers=NB_LAYERS,nb_heads=NB_HEADS,d_model=D_MODEL,nb_neurons=NB_NEURONS)
     tr.load_state_dict(torch.load(PATH_WEIGHTS))
     tr.to(DEVICE)
+
+print("=======PREDICTION=======")
+l=0
+X_batch = torch.from_numpy(pad_batch(texts_en[batches_idx[l*BATCH_SIZE:(l+1)*BATCH_SIZE]])).type(torch.LongTensor).to(DEVICE)
+Y_batch = torch.from_numpy(pad_batch(texts_fr[batches_idx[l*BATCH_SIZE:(l+1)*BATCH_SIZE]], length=MAX_SEQ)).type(torch.LongTensor).to(DEVICE)
 prediction = tr.predict(X_batch).to(torch.device("cpu"))
 translations = np.array(Pool(NCPUS).map(Itotok(itos_fr), list(prediction)))
+X_batch = np.array(Pool(NCPUS).map(Itotok(itos_en), list(X_batch.to(torch.device("cpu")))))
 Y_batch = np.array(Pool(NCPUS).map(Itotok(itos_fr), list(Y_batch.to(torch.device("cpu")))))
-print(translations[:,:10])
+print(X_batch[:10,:10])
+print(translations[:10,:10])
 print("=======ORIGINAL=======")
-print(Y_batch[:,:10])
+print(Y_batch[:10,:10])
