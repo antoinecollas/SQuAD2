@@ -1,4 +1,5 @@
 import torch
+import os
 
 PADDING_IDX = 0
 BOS_IDX = 2
@@ -15,11 +16,19 @@ MAX_VOCAB = 100000
 MIN_FREQ = 0
 
 #constants for training
-NB_EPOCH = 100
+ENGLISH_FILENAME = "training-giga-fren/giga-fren.release2.fixed_100.en"
+FRENCH_FILENAME = "training-giga-fren/giga-fren.release2.fixed_100.fr"
+NB_EPOCH = 10
 BATCH_SIZE = 50
 MAX_SEQ = 100
 
+#hardware
+NCPUS=os.cpu_count()
 DEVICE = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+
+#model
+PRETRAIN = True
+PATH_WEIGHTS = "./weights"
 
 #hyperparameters
 NB_LAYERS = 2

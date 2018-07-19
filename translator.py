@@ -45,7 +45,7 @@ class Translator(nn.Module):
             loss.backward()
             self.optimizer.step()
             running_loss += loss.item()
-            values, output = torch.max(output, dim=-1)
+            # values, output = torch.max(output, dim=-1)
             while translation[0][j]!=0:
                 j=j+1
             for i in range(batch_size):
@@ -55,28 +55,21 @@ class Translator(nn.Module):
     def predict(self, X):
         '''
         Arg:
-            X: phrases to translate: tensor(nb_texts, nb_tokens)
+            X: batch of phrases to translate: tensor(nb_texts, nb_tokens)
         '''
-        nb_texts = X.size(0)
-        targets = torch.zeros(nb_texts, self.Transformer.max_seq).type(torch.LongTensor).to(DEVICE)
-        for i in range(nb_texts):
-            targets[i][0] = BOS_IDX
+        self.train(False)
+        batch_size = X.shape[0]
+        translation = torch.zeros(batch_size, self.Transformer.max_seq).type(torch.LongTensor).to(DEVICE)
+        for i in range(batch_size):
+            translation[i][0] = BOS_IDX
         j=1
         running_loss = 0
-        for i in range(1, self.Transformer.max_seq):
-            output = self.Transformer(X, targets)
-            # output = output[:,i]
-            targets_temp = targets[:,i]
-            self.optimizer.zero_grad()
-            loss = self.criterion(output, targets_temp)
-            loss.backward()
-            self.optimizer.step()
-            running_loss += loss.item()
-            # print(output)
-            values, output = torch.max(output, dim=-1)
-            for k in range(nb_texts):
-                targets[k][j] = output[k]
+        for _ in range(1, self.Transformer.max_seq):
+            output = self.Transformer(X, translation)
+            output = torch.argmax(output, dim=-1)
+            for i in range(batch_size):
+                # print("output[i]=", output[i])
+                translation[i][j] = output[i][j-1]
             j=j+1
-            # print(output[i])
-            # print(targets[i])
-        return targets
+            # print("translation.shape=", translation.shape)
+        return translation
