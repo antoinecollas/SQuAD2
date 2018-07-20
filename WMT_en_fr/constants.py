@@ -17,7 +17,7 @@ MIN_FREQ = 0
 
 #files
 FOLDER = "training-giga-fren/"
-SIZE = "100_000" #number of pair of phrases
+SIZE = "100" #number of pair of phrases
 RAW_EN = FOLDER + "giga-fren.release2.fixed_" + SIZE + ".en"
 RAW_FR = FOLDER + "giga-fren.release2.fixed_" + SIZE + ".fr"
 PREPROCESSED_EN_TEXTS = FOLDER + "texts_" + SIZE + ".en.pickle"
@@ -43,5 +43,5 @@ NB_NEURONS = 512
 
 #constants for training
 NB_EPOCH = 20
-BATCH_SIZE = 50
-MAX_SEQ = D_MODEL//2
+BATCH_SIZE = 20
+MAX_SEQ = D_MODEL

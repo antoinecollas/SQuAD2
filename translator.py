@@ -16,7 +16,7 @@ class Translator(nn.Module):
         self.Transformer = Transformer(vocabulary_size_in, vocabulary_size_out, max_seq, nb_layers, nb_heads, d_model, nb_neurons, dropout)
         self.criterion = nn.CrossEntropyLoss()
         # print(list(self.Transformer.parameters()))
-        self.optimizer = optim.Adam(self.Transformer.parameters(), lr=0.001, betas=(0.9,0.98), eps=1e-8)
+        self.optimizer = optim.Adam(self.Transformer.parameters(), lr=0.0001, betas=(0.9,0.98), eps=1e-8)
 
     # def to(self, device):
     #     self.Transformer.to(device)
@@ -36,7 +36,7 @@ class Translator(nn.Module):
         for i in range(Y.size(0)):
             if len(Y[i])>max_len:
                 max_len=len(Y[i])
-        translation = torch.zeros(batch_size, max_len+1).type(torch.LongTensor).to(DEVICE)
+        translation = torch.zeros(batch_size, max_len).type(torch.LongTensor).to(DEVICE)
         for i in range(batch_size):
             translation[i][0] = BOS_IDX
         j=1
@@ -52,10 +52,11 @@ class Translator(nn.Module):
             loss.backward()
             self.optimizer.step()
             running_loss += loss.item()
-            for k in range(batch_size):
-                translation[k][j] = Y[k][j-1]
-            j=j+1
-        print(running_loss/(self.Transformer.max_seq-1))
+            if i!= max_len:
+                for k in range(batch_size):
+                    translation[k][j] = Y[k][j-1]
+                j=j+1
+        print(running_loss/(max_len-1))
     
     def predict(self, X):
         '''
