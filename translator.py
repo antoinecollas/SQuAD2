@@ -18,12 +18,6 @@ class Translator(nn.Module):
         # print(list(self.Transformer.parameters()))
         self.optimizer = optim.Adam(self.Transformer.parameters(), lr=0.01, betas=(0.9,0.98), eps=1e-8)
 
-    # def to(self, device):
-    #     self.Transformer.to(device)
-
-    # def train(self, mode):
-    #     self.Transformer.train(mode)
-
     def fit(self, X, Y):
         '''
         Arg:
