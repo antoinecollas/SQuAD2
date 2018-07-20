@@ -31,30 +31,27 @@ class Translator(nn.Module):
             Y: batch of translations: tensor(nb_texts, nb_tokens)
         '''
         batch_size = X.shape[0]
-        translation = torch.zeros(batch_size, self.Transformer.max_seq).type(torch.LongTensor).to(DEVICE)
+        #we search the longest phrase
+        max_len = 0
+        for i in range(Y.size(0)):
+            if len(Y[i])>max_len:
+                max_len=len(Y[i])
+        translation = torch.zeros(batch_size, max_len+1).type(torch.LongTensor).to(DEVICE)
         for i in range(batch_size):
             translation[i][0] = BOS_IDX
         j=1
         running_loss = 0
-        for i in range(1, self.Transformer.max_seq):
-            # print("i=",i)
-            # print("X=", X[0])
-            # print("Y=", Y[0])
-            # print("translation=", translation[0])
+        for i in range(1, max_len+1):
             output = self.Transformer(X, translation)
             output = output.contiguous().view(-1, output.size(-1))
             target = Y.contiguous().clone()
             target[:,i:] = 0
             target = target.view(-1)
             self.optimizer.zero_grad()
-            # print("output=", output[1])
-            # print("target[:10]=", target[:10])
             loss = self.criterion(output, target)
             loss.backward()
             self.optimizer.step()
             running_loss += loss.item()
-            # values, output = torch.max(output, dim=-1)
-            # while translation[0][j]!=0:
             for k in range(batch_size):
                 translation[k][j] = Y[k][j-1]
             j=j+1
