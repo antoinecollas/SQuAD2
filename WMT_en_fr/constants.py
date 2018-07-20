@@ -36,12 +36,12 @@ PRETRAIN = False
 PATH_WEIGHTS = "./weights"
 
 #hyperparameters
-NB_LAYERS = 2
+NB_LAYERS = 1
 NB_HEADS = 4
-D_MODEL = 256
-NB_NEURONS = 512
+D_MODEL = 32
+NB_NEURONS = 32
 
 #constants for training
-NB_EPOCH = 20
+NB_EPOCH = 50
 BATCH_SIZE = 20
 MAX_SEQ = D_MODEL
