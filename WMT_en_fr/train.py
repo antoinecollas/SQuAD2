@@ -9,6 +9,7 @@ import random
 from translator import *
 from constants import *
 from prepare_data import *
+import nltk
 
 print("====LOAD PREPROCESSED DATA====")
 t0 = time.time()
@@ -82,6 +83,7 @@ def pad_batch(batch, length=None):
     return result
 
 batches_idx = list(SortishSampler(train_texts_en, key=lambda x: len(train_texts_en[x]), bs=BATCH_SIZE))
+nb_texts = len(train_texts_en)
 nb_batches = nb_texts//BATCH_SIZE
 if nb_batches<=2:
     raise ValueError('There must be at least 2 batches.')
@@ -121,4 +123,26 @@ print(Y_batch[:5,:10])
 print("=======PREDICTIONS=======")
 print(translations[:5,:10])
 
-print("=======EVALUATION ON TEST SET=======")
+print("=======EVALUATION=======")
+print("=======BLEU ON TRAIN SET=======")
+temp = np.array(Pool(NCPUS).map(Itotok(itos_en), train_texts_en))
+train_references = []
+for i in range(temp.shape[0]):
+    train_references.append([list(temp[i])])
+# print(train_references)
+
+train_hypotheses = []
+nb_texts = len(train_texts_en)
+nb_batches = nb_texts//BATCH_SIZE + 1
+itotok_fr = Itotok(itos_fr)
+for l in range(nb_batches):
+    print("Batch:",l)
+    X_batch = torch.from_numpy(pad_batch(train_texts_en[batches_idx[l*BATCH_SIZE:(l+1)*BATCH_SIZE]])).type(torch.LongTensor).to(DEVICE)
+    # Y_batch = torch.from_numpy(pad_batch(train_texts_fr[batches_idx[l*BATCH_SIZE:(l+1)*BATCH_SIZE]])).type(torch.LongTensor).to(DEVICE)
+    hypotheses = tr.predict(X_batch).numpy()
+    for i in range(hypotheses.shape[0]):
+        train_hypotheses.append(itotok_fr(list(hypotheses[i,:])))
+# print(train_hypotheses)
+BLEU = nltk.translate.bleu_score.corpus_bleu(train_references, train_hypotheses)
+print(BLEU)
+print("=======BLEU ON TEST SET=======")
