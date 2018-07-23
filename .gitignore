@@ -4,5 +4,4 @@ __pycache__/
 *.sh
 server/
 *.pickle
-WMT_en_fr/training-giga-fren/
 weights
