@@ -16,7 +16,7 @@ class Translator(nn.Module):
         self.Transformer = Transformer(vocabulary_size_in, vocabulary_size_out, max_seq, nb_layers, nb_heads, d_model, nb_neurons, dropout)
         self.criterion = nn.CrossEntropyLoss()
         # print(list(self.Transformer.parameters()))
-        self.optimizer = optim.Adam(self.Transformer.parameters(), lr=0.01, betas=(0.9,0.98), eps=1e-8)
+        self.optimizer = optim.Adam(self.Transformer.parameters(), lr=0.0005, betas=(0.9,0.98), eps=1e-8)
 
     def fit(self, X, Y):
         '''
@@ -44,14 +44,21 @@ class Translator(nn.Module):
         '''
         self.train(False)
         batch_size = X.shape[0]
-        translation = torch.zeros(batch_size, self.Transformer.max_seq).type(torch.LongTensor).to(DEVICE)
-        translation[:,0] = BOS_IDX
-        j=1
-        running_loss = 0
-        for _ in range(1, self.Transformer.max_seq):
-            output = self.Transformer(X, translation)
+        temp = torch.zeros(batch_size, self.Transformer.max_seq).type(torch.LongTensor).to(DEVICE)
+        temp[:,0] = BOS_IDX
+        for j in range(1, self.Transformer.max_seq):
+            output = self.Transformer(X, temp)
             output = torch.argmax(output, dim=-1)
             for i in range(batch_size):
-                translation[i][j] = output[i][j-1]
-            j=j+1
-        return translation[:,1:]
+                temp[i][j] = output[i][j-1]
+        #remove padding
+        translations = []
+        for translation in temp:
+            temp2 = []
+            for i in range(self.Transformer.max_seq):
+                if translation[i] == PADDING_IDX:
+                    break
+                if i!=0:
+                    temp2.append(translation[i])
+            translations.append(temp2)
+        return translations

@@ -23,7 +23,7 @@ class Toktoi(object):
         return toktoi(self.stoi, tok)
 
 def itotok(itos, i):
-    return [itos[o] for o in i]
+    return [itos[int(o)] for o in i]
 
 class Itotok(object):
     def __init__(self, itos):

@@ -61,8 +61,12 @@ random.shuffle(idx)
 idx_train = idx[:nb_train]
 idx_test = idx[nb_train:]
 train_texts_en = texts_en[idx_train]
+# print(train_texts_en.shape)
 train_texts_fr = texts_fr[idx_train]
+# print(train_texts_en[:2])
 test_texts_en = texts_en[idx_test]
+# print(test_texts_en.shape)
+# print(test_texts_en[:2])
 test_texts_fr = texts_fr[idx_test]
 
 def pad_batch(batch, length=None):
@@ -107,30 +111,10 @@ else:
     tr.load_state_dict(torch.load(PATH_WEIGHTS))
     tr.to(DEVICE)
 
-
-l=0
-X_batch = torch.from_numpy(pad_batch(train_texts_en[batches_idx[l*BATCH_SIZE:(l+1)*BATCH_SIZE]])).type(torch.LongTensor).to(DEVICE)
-Y_batch = torch.from_numpy(pad_batch(train_texts_fr[batches_idx[l*BATCH_SIZE:(l+1)*BATCH_SIZE]], length=MAX_SEQ)).type(torch.LongTensor).to(DEVICE)
-prediction = tr.predict(X_batch).to(torch.device("cpu"))
-X_batch = np.array(Pool(NCPUS).map(Itotok(itos_en), list(X_batch.to(torch.device("cpu")))))
-Y_batch = np.array(Pool(NCPUS).map(Itotok(itos_fr), list(Y_batch.to(torch.device("cpu")))))
-translations = np.array(Pool(NCPUS).map(Itotok(itos_fr), list(prediction)))
-
-print("=======SOME PHRASES (in training set)=======")
-print(X_batch[:5,:10])
-print("=======REFERENCE TRANSLATIONS (in training set)=======")
-print(Y_batch[:5,:10])
-print("=======PREDICTIONS=======")
-print(translations[:5,:10])
-
 print("=======EVALUATION=======")
 print("=======BLEU ON TRAIN SET=======")
-temp = np.array(Pool(NCPUS).map(Itotok(itos_en), train_texts_en))
+batches_idx = list(SortishSampler(train_texts_en, key=lambda x: len(train_texts_en[x]), bs=BATCH_SIZE))
 train_references = []
-for i in range(temp.shape[0]):
-    train_references.append([list(temp[i])])
-# print(train_references)
-
 train_hypotheses = []
 nb_texts = len(train_texts_en)
 nb_batches = nb_texts//BATCH_SIZE + 1
@@ -138,11 +122,42 @@ itotok_fr = Itotok(itos_fr)
 for l in range(nb_batches):
     print("Batch:",l)
     X_batch = torch.from_numpy(pad_batch(train_texts_en[batches_idx[l*BATCH_SIZE:(l+1)*BATCH_SIZE]])).type(torch.LongTensor).to(DEVICE)
-    # Y_batch = torch.from_numpy(pad_batch(train_texts_fr[batches_idx[l*BATCH_SIZE:(l+1)*BATCH_SIZE]])).type(torch.LongTensor).to(DEVICE)
-    hypotheses = tr.predict(X_batch).numpy()
-    for i in range(hypotheses.shape[0]):
-        train_hypotheses.append(itotok_fr(list(hypotheses[i,:])))
-# print(train_hypotheses)
+    Y_batch = train_texts_fr[batches_idx[l*BATCH_SIZE:(l+1)*BATCH_SIZE]]
+    for i in range(Y_batch.shape[0]):
+        train_references.append([itotok_fr(list(Y_batch[i]))])
+    hypotheses = tr.predict(X_batch)
+    for i in range(len(hypotheses)):
+        train_hypotheses.append(itotok_fr(hypotheses[i]))
+for i, phrases in enumerate(zip(train_references, train_hypotheses)):
+    print(phrases[0])
+    print(phrases[1])
+    print("")
+    if i==5:
+        break
 BLEU = nltk.translate.bleu_score.corpus_bleu(train_references, train_hypotheses)
 print(BLEU)
+
 print("=======BLEU ON TEST SET=======")
+batches_idx = list(SortishSampler(test_texts_en, key=lambda x: len(test_texts_en[x]), bs=BATCH_SIZE))
+test_references = []
+test_hypotheses = []
+nb_texts = len(test_texts_en)
+nb_batches = nb_texts//BATCH_SIZE + 1
+itotok_fr = Itotok(itos_fr)
+for l in range(nb_batches):
+    print("Batch:",l)
+    X_batch = torch.from_numpy(pad_batch(test_texts_en[batches_idx[l*BATCH_SIZE:(l+1)*BATCH_SIZE]])).type(torch.LongTensor).to(DEVICE)
+    Y_batch = test_texts_fr[batches_idx[l*BATCH_SIZE:(l+1)*BATCH_SIZE]]
+    for i in range(Y_batch.shape[0]):
+        test_references.append([itotok_fr(list(Y_batch[i]))])
+    hypotheses = tr.predict(X_batch)
+    for i in range(len(hypotheses)):
+        test_hypotheses.append(itotok_fr(hypotheses[i]))
+for i, phrases in enumerate(zip(test_references, test_hypotheses)):
+    print(phrases[0])
+    print(phrases[1])
+    print("")
+    if i==5:
+        break
+BLEU = nltk.translate.bleu_score.corpus_bleu(test_references, test_hypotheses)
+print(BLEU)

@@ -5,7 +5,7 @@ PADDING_IDX = 0
 BOS_IDX = 2
 EOS_IDX = 3
 BOS_WORD = '<s>'
-EOS_WORD = '</s>'
+EOS_WORD = '\n'
 BLANK_WORD = '<blank>'
 UNKNOW_WORD = '_unk_'
 PADDING_WORD = '_pad_'
@@ -17,7 +17,7 @@ MIN_FREQ = 0
 
 #files
 FOLDER = "training-giga-fren/"
-SIZE = "100" #number of pair of phrases
+SIZE = "1000" #number of pair of phrases
 RAW_EN = FOLDER + "giga-fren.release2.fixed_" + SIZE + ".en"
 RAW_FR = FOLDER + "giga-fren.release2.fixed_" + SIZE + ".fr"
 PREPROCESSED_EN_TEXTS = FOLDER + "texts_" + SIZE + ".en.pickle"
@@ -42,6 +42,7 @@ D_MODEL = 32
 NB_NEURONS = 32
 
 #constants for training
+TRAIN_SPLIT = 0.7
 NB_EPOCH = 50
-BATCH_SIZE = 20
+BATCH_SIZE = 100
 MAX_SEQ = D_MODEL
