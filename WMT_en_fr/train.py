@@ -117,7 +117,7 @@ batches_idx = list(SortishSampler(train_texts_en, key=lambda x: len(train_texts_
 train_references = []
 train_hypotheses = []
 nb_texts = len(train_texts_en)
-nb_batches = nb_texts//BATCH_SIZE + 1
+nb_batches = nb_texts//BATCH_SIZE
 itotok_fr = Itotok(itos_fr)
 for l in range(nb_batches):
     print("Batch:",l)
@@ -142,7 +142,7 @@ batches_idx = list(SortishSampler(test_texts_en, key=lambda x: len(test_texts_en
 test_references = []
 test_hypotheses = []
 nb_texts = len(test_texts_en)
-nb_batches = nb_texts//BATCH_SIZE + 1
+nb_batches = nb_texts//BATCH_SIZE
 itotok_fr = Itotok(itos_fr)
 for l in range(nb_batches):
     print("Batch:",l)

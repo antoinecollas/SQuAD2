@@ -54,7 +54,7 @@ def prepare_texts(filename, lang):
     itos.insert(0, BOS_WORD)
     itos.insert(0, UNKNOW_WORD)
     itos.insert(0, PADDING_WORD)
-    # print("Length dictionnary integer to string=", len(itos))
+    print("Length dictionnary integer to string=", len(itos))
     #we use a default value when the string doesn't exist in the dictionnary
     stoi = stoi_from_itos(itos)
     t1 = time.time()

@@ -12,12 +12,12 @@ PADDING_WORD = '_pad_'
 
 #constants for the preparation of WMT en_fr
 UNKNOW_WORD_IDX = 1
-MAX_VOCAB = 100000
+MAX_VOCAB = 100
 MIN_FREQ = 0
 
 #files
 FOLDER = "training-giga-fren/"
-SIZE = "1000" #number of pair of phrases
+SIZE = "100_000" #number of pair of phrases
 RAW_EN = FOLDER + "giga-fren.release2.fixed_" + SIZE + ".en"
 RAW_FR = FOLDER + "giga-fren.release2.fixed_" + SIZE + ".fr"
 PREPROCESSED_EN_TEXTS = FOLDER + "texts_" + SIZE + ".en.pickle"
@@ -36,13 +36,13 @@ PRETRAIN = False
 PATH_WEIGHTS = "./weights"
 
 #hyperparameters
-NB_LAYERS = 1
+NB_LAYERS = 2
 NB_HEADS = 4
-D_MODEL = 32
-NB_NEURONS = 32
+D_MODEL = 256
+NB_NEURONS = 512
 
 #constants for training
 TRAIN_SPLIT = 0.7
-NB_EPOCH = 50
-BATCH_SIZE = 100
+NB_EPOCH = 1
+BATCH_SIZE = 10
 MAX_SEQ = D_MODEL
