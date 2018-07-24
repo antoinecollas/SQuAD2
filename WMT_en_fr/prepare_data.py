@@ -48,12 +48,15 @@ def prepare_texts(filename, lang):
     print("time Tokenizer=",total)
     t0 = time.time()
     freq = Counter(p for o in tok for p in o)
-    # print("Most common words:", freq.most_common(25))
+    # print("Most common words:", freq.most_common(MAX_VOCAB))
     itos = [o for o,c in freq.most_common(MAX_VOCAB) if c>MIN_FREQ]
-    itos.insert(0, EOS_WORD)
-    itos.insert(0, BOS_WORD)
-    itos.insert(0, UNKNOW_WORD)
-    itos.insert(0, PADDING_WORD)
+    #we add the 4 constants
+    for i in range(4):
+        itos.insert(0, '')
+    itos[EOS_IDX] = EOS_WORD
+    itos[BOS_IDX] = BOS_WORD
+    itos[UNKNOW_WORD_IDX] = UNKNOW_WORD
+    itos[PADDING_IDX] = PADDING_WORD
     print("Length dictionnary integer to string=", len(itos))
     #we use a default value when the string doesn't exist in the dictionnary
     stoi = stoi_from_itos(itos)

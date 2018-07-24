@@ -1,17 +1,17 @@
 import torch
 import os
 
+#constants for the preparation of WMT en_fr
+#/!\ the idx must be int in [0,3] and words must be different from vocabulary of the texts
 PADDING_IDX = 0
+UNKNOW_WORD_IDX = 1
 BOS_IDX = 2
 EOS_IDX = 3
 BOS_WORD = '<s>'
-EOS_WORD = '\n'
+EOS_WORD = '</s>'
 BLANK_WORD = '<blank>'
 UNKNOW_WORD = '_unk_'
 PADDING_WORD = '_pad_'
-
-#constants for the preparation of WMT en_fr
-UNKNOW_WORD_IDX = 1
 MAX_VOCAB = 100
 MIN_FREQ = 0
 
