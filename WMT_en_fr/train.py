@@ -98,6 +98,8 @@ tr.to(DEVICE)
 
 if not PRETRAIN:
     print("=======TRAINING=======")
+    nb_train_steps = NB_EPOCH*nb_batches
+    print("Nb train steps=",nb_train_steps)
     for k in range(NB_EPOCH):
         print("=======Epoch:=======",k)
         for l in range(nb_batches):
