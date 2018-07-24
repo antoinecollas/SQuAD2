@@ -28,7 +28,7 @@ class Transformer(nn.Module):
         Arg:
             src: tensor(nb_texts, nb_tokens)
         Output:
-            tensor(nb_texts, nb_tokens, vocabulary_size_in)
+            tensor(nb_texts, nb_tokens, d_model)
         '''
         mask = get_mask(src,src)
         enc = self.EmbeddingSrc(src)
@@ -39,7 +39,7 @@ class Transformer(nn.Module):
         '''
         Arg:
             src: tensor(nb_texts, nb_tokens)
-            enc: tensor(nb_texts, nb_tokens, vocabulary_size_in)
+            enc: tensor(nb_texts, nb_tokens, d_model)
             target: tensor(nb_texts, nb_tokens)
         Output:
             tensor(nb_texts, nb_tokens, vocabulary_size_out)
@@ -61,5 +61,5 @@ class Transformer(nn.Module):
             tensor(nb_texts, nb_tokens, vocabulary_size_out)
         '''
         enc = self.forward_encoder(src)
-        output = self.forward_decoder(src, target)
+        output = self.forward_decoder(src, enc, target)
         return output

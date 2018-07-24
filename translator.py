@@ -17,7 +17,10 @@ class Translator(nn.Module):
         self.Transformer = Transformer(vocabulary_size_in, vocabulary_size_out, max_seq, nb_layers, nb_heads, d_model, nb_neurons, dropout)
         self.criterion = nn.CrossEntropyLoss()
         # print(list(self.Transformer.parameters()))
-        self.optimizer = optim.Adam(self.Transformer.parameters(), lr=0.0005, betas=(0.9,0.98), eps=1e-8)
+        self.optimizer = optim.Adam(self.Transformer.parameters(), lr=0.0001, betas=(0.9,0.98), eps=1e-8)
+    
+    def count_parameters(self):
+        return sum(p.numel() for p in self.parameters() if p.requires_grad)
 
     def fit(self, X, Y):
         '''
@@ -36,7 +39,7 @@ class Translator(nn.Module):
         loss.backward()
         self.optimizer.step()
         running_loss = loss.item()
-        print(running_loss)
+        return running_loss
 
     def predict(self, X):
         '''

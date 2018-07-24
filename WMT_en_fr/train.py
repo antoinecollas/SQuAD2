@@ -95,19 +95,24 @@ if nb_batches<=2:
 tr = Translator(vocabulary_size_in=len(stoi_en),vocabulary_size_out=len(stoi_fr),max_seq=MAX_SEQ,nb_layers=NB_LAYERS,nb_heads=NB_HEADS,d_model=D_MODEL,nb_neurons=NB_NEURONS)
 tr.train(True)
 tr.to(DEVICE)
+print("Nb parameters=",tr.count_parameters())
 
 if not PRETRAIN:
     print("=======TRAINING=======")
     nb_train_steps = NB_EPOCH*nb_batches
+    loss=0
     print("Nb train steps=",nb_train_steps)
     for k in range(NB_EPOCH):
         print("=======Epoch:=======",k)
         for l in range(nb_batches):
-            print("Batch:",l)
+            if l%100==0:
+                print("Batch:",l)
+                print(loss/100)
+                loss=0
             X_batch = torch.from_numpy(pad_batch(train_texts_en[batches_idx[l*BATCH_SIZE:(l+1)*BATCH_SIZE]])).type(torch.LongTensor).to(DEVICE)
             Y_batch = torch.from_numpy(pad_batch(train_texts_fr[batches_idx[l*BATCH_SIZE:(l+1)*BATCH_SIZE]])).type(torch.LongTensor).to(DEVICE)
-            tr.fit(X_batch, Y_batch)
-    torch.save(tr.state_dict(), PATH_WEIGHTS)
+            loss = loss + tr.fit(X_batch, Y_batch)
+        torch.save(tr.state_dict(), PATH_WEIGHTS)
 else:
     tr = Translator(vocabulary_size_in=len(stoi_en),vocabulary_size_out=len(stoi_fr),max_seq=MAX_SEQ,nb_layers=NB_LAYERS,nb_heads=NB_HEADS,d_model=D_MODEL,nb_neurons=NB_NEURONS)
     tr.load_state_dict(torch.load(PATH_WEIGHTS))
