@@ -7,6 +7,7 @@ import torch.nn.functional as F
 import torch.optim as optim
 from transformer import Transformer
 from constants import *
+import time
 
 # torch.manual_seed(1)
 
@@ -46,12 +47,17 @@ class Translator(nn.Module):
         batch_size = X.shape[0]
         temp = torch.zeros(batch_size, self.Transformer.max_seq).type(torch.LongTensor).to(DEVICE)
         temp[:,0] = BOS_IDX
+        # t0 = time.time()
+        enc = self.Transformer.forward_encoder(X)
         for j in range(1, self.Transformer.max_seq):
-            output = self.Transformer(X, temp)
+            output = self.Transformer.forward_decoder(X, enc, temp)
             output = torch.argmax(output, dim=-1)
-            for i in range(batch_size):
-                temp[i][j] = output[i][j-1]
+            temp[:,j] = output[:,j-1]
+        # t1 = time.time()
+        # total = t1-t0
+        # print("time prediction batch=",total)
         #remove padding
+        # t0 = time.time()
         translations = []
         for translation in temp:
             temp2 = []
@@ -61,4 +67,7 @@ class Translator(nn.Module):
                 if i!=0:
                     temp2.append(translation[i])
             translations.append(temp2)
+        # t1 = time.time()
+        # total = t1-t0
+        # print("time remove padding=",total)
         return translations

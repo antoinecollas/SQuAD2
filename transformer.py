@@ -9,6 +9,7 @@ from layers import Embedding, get_mask
 from encoder import Encoder
 from decoder import Decoder
 from constants import *
+import time
 
 # torch.manual_seed(1)
 
@@ -22,6 +23,35 @@ class Transformer(nn.Module):
         self.Decoder = Decoder(nb_layers=nb_layers, nb_heads=nb_heads, d_model=d_model, nb_neurons=nb_neurons, dropout=dropout)
         self.Linear = nn.Linear(d_model, vocabulary_size_out, bias=False)
 
+    def forward_encoder(self, src):
+        '''
+        Arg:
+            src: tensor(nb_texts, nb_tokens)
+        Output:
+            tensor(nb_texts, nb_tokens, vocabulary_size_in)
+        '''
+        mask = get_mask(src,src)
+        enc = self.EmbeddingSrc(src)
+        enc = self.Encoder(enc,mask)
+        return enc
+
+    def forward_decoder(self, src, enc, target):
+        '''
+        Arg:
+            src: tensor(nb_texts, nb_tokens)
+            enc: tensor(nb_texts, nb_tokens, vocabulary_size_in)
+            target: tensor(nb_texts, nb_tokens)
+        Output:
+            tensor(nb_texts, nb_tokens, vocabulary_size_out)
+        '''
+        mask1 = get_mask(target,target,avoid_subsequent_info=True)
+        mask2 = get_mask(target,src)
+        output = self.EmbeddingTgt(target)
+        output = self.Decoder(enc, output, mask1, mask2)
+        output = self.Linear(output)
+        # output = F.softmax(output, dim=-1)
+        return output
+
     def forward(self, src, target):
         '''
         Arg:
@@ -30,13 +60,6 @@ class Transformer(nn.Module):
         Output:
             tensor(nb_texts, nb_tokens, vocabulary_size_out)
         '''
-        mask = get_mask(src,src)
-        enc = self.EmbeddingSrc(src)
-        enc = self.Encoder(enc,mask)
-        mask1 = get_mask(target,target,avoid_subsequent_info=True)
-        mask2 = get_mask(target,src)
-        output = self.EmbeddingTgt(target)
-        output = self.Decoder(enc, output, mask1, mask2)
-        output = self.Linear(output)
-        # output = F.softmax(output, dim=-1)
+        enc = self.forward_encoder(src)
+        output = self.forward_decoder(src, target)
         return output
