@@ -113,16 +113,16 @@ else:
 
 print("=======EVALUATION=======")
 print("=======BLEU ON TRAIN SET=======")
-batches_idx = list(SortishSampler(train_texts_en, key=lambda x: len(train_texts_en[x]), bs=BATCH_SIZE))
+batches_idx = list(SortishSampler(train_texts_en, key=lambda x: len(train_texts_en[x]), bs=PREDICT_BATCH_SIZE))
 train_references = []
 train_hypotheses = []
 nb_texts = len(train_texts_en)
-nb_batches = nb_texts//BATCH_SIZE
+nb_batches = nb_texts//PREDICT_BATCH_SIZE
 itotok_fr = Itotok(itos_fr)
 for l in range(nb_batches):
     print("Batch:",l)
-    X_batch = torch.from_numpy(pad_batch(train_texts_en[batches_idx[l*BATCH_SIZE:(l+1)*BATCH_SIZE]])).type(torch.LongTensor).to(DEVICE)
-    Y_batch = train_texts_fr[batches_idx[l*BATCH_SIZE:(l+1)*BATCH_SIZE]]
+    X_batch = torch.from_numpy(pad_batch(train_texts_en[batches_idx[l*PREDICT_BATCH_SIZE:(l+1)*PREDICT_BATCH_SIZE]])).type(torch.LongTensor).to(DEVICE)
+    Y_batch = train_texts_fr[batches_idx[l*PREDICT_BATCH_SIZE:(l+1)*PREDICT_BATCH_SIZE]]
     for i in range(Y_batch.shape[0]):
         train_references.append([itotok_fr(list(Y_batch[i]))])
     hypotheses = tr.predict(X_batch)
@@ -138,16 +138,16 @@ BLEU = nltk.translate.bleu_score.corpus_bleu(train_references, train_hypotheses)
 print(BLEU)
 
 print("=======BLEU ON TEST SET=======")
-batches_idx = list(SortishSampler(test_texts_en, key=lambda x: len(test_texts_en[x]), bs=BATCH_SIZE))
+batches_idx = list(SortishSampler(test_texts_en, key=lambda x: len(test_texts_en[x]), bs=PREDICT_BATCH_SIZE))
 test_references = []
 test_hypotheses = []
 nb_texts = len(test_texts_en)
-nb_batches = nb_texts//BATCH_SIZE
+nb_batches = nb_texts//PREDICT_BATCH_SIZE
 itotok_fr = Itotok(itos_fr)
 for l in range(nb_batches):
     print("Batch:",l)
-    X_batch = torch.from_numpy(pad_batch(test_texts_en[batches_idx[l*BATCH_SIZE:(l+1)*BATCH_SIZE]])).type(torch.LongTensor).to(DEVICE)
-    Y_batch = test_texts_fr[batches_idx[l*BATCH_SIZE:(l+1)*BATCH_SIZE]]
+    X_batch = torch.from_numpy(pad_batch(test_texts_en[batches_idx[l*PREDICT_BATCH_SIZE:(l+1)*PREDICT_BATCH_SIZE]])).type(torch.LongTensor).to(DEVICE)
+    Y_batch = test_texts_fr[batches_idx[l*PREDICT_BATCH_SIZE:(l+1)*PREDICT_BATCH_SIZE]]
     for i in range(Y_batch.shape[0]):
         test_references.append([itotok_fr(list(Y_batch[i]))])
     hypotheses = tr.predict(X_batch)

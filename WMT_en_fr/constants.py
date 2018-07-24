@@ -12,12 +12,12 @@ EOS_WORD = '</s>'
 BLANK_WORD = '<blank>'
 UNKNOW_WORD = '_unk_'
 PADDING_WORD = '_pad_'
-MAX_VOCAB = 100
+MAX_VOCAB = 100000
 MIN_FREQ = 0
 
 #files
 FOLDER = "training-giga-fren/"
-SIZE = "100_000" #number of pair of phrases
+SIZE = "100" #number of pair of phrases
 RAW_EN = FOLDER + "giga-fren.release2.fixed_" + SIZE + ".en"
 RAW_FR = FOLDER + "giga-fren.release2.fixed_" + SIZE + ".fr"
 PREPROCESSED_EN_TEXTS = FOLDER + "texts_" + SIZE + ".en.pickle"
@@ -32,7 +32,7 @@ NCPUS=os.cpu_count()
 DEVICE = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
 #model
-PRETRAIN = False
+PRETRAIN = True
 PATH_WEIGHTS = "./weights"
 
 #hyperparameters
@@ -43,6 +43,8 @@ NB_NEURONS = 512
 
 #constants for training
 TRAIN_SPLIT = 0.7
-NB_EPOCH = 1
+NB_EPOCH = 50
 BATCH_SIZE = 10
 MAX_SEQ = D_MODEL
+
+PREDICT_BATCH_SIZE = 20
