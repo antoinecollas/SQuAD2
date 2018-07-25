@@ -33,7 +33,7 @@ DEVICE = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
 #model
 PRETRAIN = False
-PATH_WEIGHTS = "./weights"
+PATH_WEIGHTS = "./weights_" + SIZE
 
 #hyperparameters
 NB_LAYERS = 6
