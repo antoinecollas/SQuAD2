@@ -105,15 +105,15 @@ if TRAIN:
     print("Nb train steps=",nb_train_steps)
     for k in range(NB_EPOCH):
         print("=======Epoch:=======",k)
+        loss=0
         for l in range(nb_batches):
-            if l%100==0:
+            if l%200==0:
                 print("Batch:",l)
-                print(loss/100)
-                loss=0
             X_batch = torch.from_numpy(pad_batch(train_texts_en[batches_idx[l*BATCH_SIZE:(l+1)*BATCH_SIZE]])).type(torch.LongTensor).to(DEVICE)
             Y_batch = torch.from_numpy(pad_batch(train_texts_fr[batches_idx[l*BATCH_SIZE:(l+1)*BATCH_SIZE]])).type(torch.LongTensor).to(DEVICE)
             loss = loss + tr.fit(X_batch, Y_batch)
         torch.save(tr.state_dict(), PATH_WEIGHTS)
+        print(loss/nb_batches)
 
 print("=======EVALUATION=======")
 print("=======BLEU ON TRAIN SET=======")
