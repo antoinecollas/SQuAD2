@@ -32,7 +32,8 @@ NCPUS=os.cpu_count()
 DEVICE = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
 #model
-PRETRAIN = False
+PRETRAIN = True
+TRAIN = True
 PATH_WEIGHTS = "./weights_" + SIZE
 
 #hyperparameters

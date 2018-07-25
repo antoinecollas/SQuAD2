@@ -93,11 +93,12 @@ if nb_batches<=2:
     raise ValueError('There must be at least 2 batches.')
 
 tr = Translator(vocabulary_size_in=len(stoi_en),vocabulary_size_out=len(stoi_fr),max_seq=MAX_SEQ,nb_layers=NB_LAYERS,nb_heads=NB_HEADS,d_model=D_MODEL,nb_neurons=NB_NEURONS)
-tr.train(True)
+if PRETRAIN:
+    tr.load_state_dict(torch.load(PATH_WEIGHTS))
 tr.to(DEVICE)
 print("Nb parameters=",tr.count_parameters())
-
-if not PRETRAIN:
+if TRAIN:
+    tr.train(True)
     print("=======TRAINING=======")
     nb_train_steps = NB_EPOCH*nb_batches
     loss=0
@@ -113,10 +114,6 @@ if not PRETRAIN:
             Y_batch = torch.from_numpy(pad_batch(train_texts_fr[batches_idx[l*BATCH_SIZE:(l+1)*BATCH_SIZE]])).type(torch.LongTensor).to(DEVICE)
             loss = loss + tr.fit(X_batch, Y_batch)
         torch.save(tr.state_dict(), PATH_WEIGHTS)
-else:
-    tr = Translator(vocabulary_size_in=len(stoi_en),vocabulary_size_out=len(stoi_fr),max_seq=MAX_SEQ,nb_layers=NB_LAYERS,nb_heads=NB_HEADS,d_model=D_MODEL,nb_neurons=NB_NEURONS)
-    tr.load_state_dict(torch.load(PATH_WEIGHTS))
-    tr.to(DEVICE)
 
 print("=======EVALUATION=======")
 print("=======BLEU ON TRAIN SET=======")
