@@ -92,7 +92,7 @@ nb_batches = nb_texts//BATCH_SIZE
 if nb_batches<=2:
     raise ValueError('There must be at least 2 batches.')
 
-tr = Translator(vocabulary_size_in=len(stoi_en),vocabulary_size_out=len(stoi_fr),max_seq=MAX_SEQ,nb_layers=NB_LAYERS,nb_heads=NB_HEADS,d_model=D_MODEL,nb_neurons=NB_NEURONS)
+tr = Translator(vocabulary_size_in=len(stoi_en),vocabulary_size_out=len(stoi_fr),max_seq=MAX_SEQ,nb_layers=NB_LAYERS,nb_heads=NB_HEADS,d_model=D_MODEL,nb_neurons=NB_NEURONS,warmup_steps=WARMUP_STEPS)
 if PRETRAIN:
     tr.load_state_dict(torch.load(PATH_WEIGHTS))
 tr.to(DEVICE)

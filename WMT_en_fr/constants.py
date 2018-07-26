@@ -17,7 +17,7 @@ MIN_FREQ = 0
 
 #files
 FOLDER = "training-giga-fren/"
-SIZE = "100_000" #number of pair of phrases
+SIZE = "1000" #number of pair of phrases
 RAW_EN = FOLDER + "giga-fren.release2.fixed_" + SIZE + ".en"
 RAW_FR = FOLDER + "giga-fren.release2.fixed_" + SIZE + ".fr"
 PREPROCESSED_EN_TEXTS = FOLDER + "texts_" + SIZE + ".en.pickle"
@@ -35,16 +35,16 @@ DEVICE = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 PRETRAIN = False
 TRAIN = True
 PATH_WEIGHTS = "./weights_" + SIZE
-
 #hyperparameters
 NB_LAYERS = 2
 NB_HEADS = 4
 D_MODEL = 256
 NB_NEURONS = 1024
+WARMUP_STEPS = 10
 
 #constants for training
 TRAIN_SPLIT = 0.7
-NB_EPOCH = 1000
+NB_EPOCH = 10
 BATCH_SIZE = 30
 MAX_SEQ = D_MODEL
 
