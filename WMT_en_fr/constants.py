@@ -12,7 +12,7 @@ EOS_WORD = '</s>'
 BLANK_WORD = '<blank>'
 UNKNOW_WORD = '_unk_'
 PADDING_WORD = '_pad_'
-MAX_VOCAB = 20000
+MAX_VOCAB = 1000000
 MIN_FREQ = 0
 
 #files
@@ -32,20 +32,20 @@ NCPUS=os.cpu_count()
 DEVICE = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
 #model
-PRETRAIN = True
+PRETRAIN = False
 TRAIN = True
 PATH_WEIGHTS = "./weights_" + SIZE
 
 #hyperparameters
-NB_LAYERS = 6
-NB_HEADS = 8
+NB_LAYERS = 2
+NB_HEADS = 4
 D_MODEL = 256
 NB_NEURONS = 1024
 
 #constants for training
 TRAIN_SPLIT = 0.7
-NB_EPOCH = 100
-BATCH_SIZE = 25
+NB_EPOCH = 1000
+BATCH_SIZE = 30
 MAX_SEQ = D_MODEL
 
-PREDICT_BATCH_SIZE = 25
+PREDICT_BATCH_SIZE = 30
