@@ -106,8 +106,8 @@ if TRAIN:
         print("=======Epoch:=======",k)
         loss=0
         for l in range(nb_batches):
-            if l%200==0:
-                print("Batch:",l)
+            # if l%(nb_batches//10)==0:
+            #     print("Batch:",l)
             X_batch = torch.from_numpy(pad_batch(train_texts_en[batches_idx[l*BATCH_SIZE:(l+1)*BATCH_SIZE]])).type(torch.LongTensor).to(DEVICE)
             Y_batch = torch.from_numpy(pad_batch(train_texts_fr[batches_idx[l*BATCH_SIZE:(l+1)*BATCH_SIZE]])).type(torch.LongTensor).to(DEVICE)
             loss = loss + tr.fit(X_batch, Y_batch)
