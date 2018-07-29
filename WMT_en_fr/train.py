@@ -35,6 +35,7 @@ texts_en = np.delete(texts_en, to_remove)
 texts_fr = np.delete(texts_fr, to_remove)
 
 def pad_batch(batch, length=None):
+    # t0 = time.time()
     if length is None:
         len_max = -float('Inf')
         for phrase in batch:
@@ -49,11 +50,15 @@ def pad_batch(batch, length=None):
             phrase.append(PADDING_IDX)
         result[k] = np.array(phrase)
         k+=1
+    # t1 = time.time()
+    # print("pad batch time=", t1-t0)
     return result
 batches_idx = list(SortishSampler(texts_en, key=lambda x: len(texts_en[x]), bs=BATCH_SIZE))
 nb_texts = len(texts_en)
 nb_batches = nb_texts//BATCH_SIZE
-if nb_batches<=2:
+if nb_texts % BATCH_SIZE != 0:
+    nb_batches+=1
+if nb_batches<2:
     raise ValueError('There must be at least 2 batches.')
 
 tr = Translator(vocabulary_size_in=len(stoi),vocabulary_size_out=len(stoi),max_seq=MAX_SEQ,nb_layers=NB_LAYERS,nb_heads=NB_HEADS,d_model=D_MODEL,nb_neurons=NB_NEURONS,warmup_steps=WARMUP_STEPS)
@@ -65,16 +70,21 @@ if TRAIN:
     tr.train(True)
     print("=======TRAINING=======")
     nb_train_steps = NB_EPOCH*nb_batches
+    print("Nb epochs=",NB_EPOCH)
+    print("Nb batches=",nb_batches)
     print("Nb train steps=",nb_train_steps)
     for k in range(NB_EPOCH):
         print("=======Epoch:=======",k)
         loss=0
         for l in range(nb_batches):
             # if l%(nb_batches//10)==0:
-            #     print("Batch:",l)
+            # print("Batch:",l)
             X_batch = torch.from_numpy(pad_batch(texts_en[batches_idx[l*BATCH_SIZE:(l+1)*BATCH_SIZE]])).type(torch.LongTensor).to(DEVICE)
             Y_batch = torch.from_numpy(pad_batch(texts_fr[batches_idx[l*BATCH_SIZE:(l+1)*BATCH_SIZE]])).type(torch.LongTensor).to(DEVICE)
+            # t0 = time.time()
             loss = loss + tr.fit(X_batch, Y_batch)
+            # t1 = time.time()
+            # print("time fit=", t1-t0)
         torch.save(tr.state_dict(), PATH_WEIGHTS)
         print(loss/nb_batches)
 
@@ -104,27 +114,27 @@ for i, phrases in enumerate(zip(train_references, train_hypotheses)):
 BLEU = nltk.translate.bleu_score.corpus_bleu(train_references, train_hypotheses)
 print(BLEU)
 
-print("=======BLEU ON TEST SET=======")
-batches_idx = list(SortishSampler(test_texts_en, key=lambda x: len(test_texts_en[x]), bs=PREDICT_BATCH_SIZE))
-test_references = []
-test_hypotheses = []
-nb_texts = len(test_texts_en)
-nb_batches = nb_texts//PREDICT_BATCH_SIZE
-itotok_fr = Itotok(itos)
-for l in range(nb_batches):
-    print("Batch:",l)
-    X_batch = torch.from_numpy(pad_batch(test_texts_en[batches_idx[l*PREDICT_BATCH_SIZE:(l+1)*PREDICT_BATCH_SIZE]])).type(torch.LongTensor).to(DEVICE)
-    Y_batch = test_texts_fr[batches_idx[l*PREDICT_BATCH_SIZE:(l+1)*PREDICT_BATCH_SIZE]]
-    for i in range(Y_batch.shape[0]):
-        test_references.append([itotok_fr(list(Y_batch[i]))])
-    hypotheses = tr.predict(X_batch)
-    for i in range(len(hypotheses)):
-        test_hypotheses.append(itotok_fr(hypotheses[i]))
-for i, phrases in enumerate(zip(test_references, test_hypotheses)):
-    print(phrases[0])
-    print(phrases[1])
-    print("")
-    if i==5:
-        break
-BLEU = nltk.translate.bleu_score.corpus_bleu(test_references, test_hypotheses)
-print(BLEU)
+# print("=======BLEU ON TEST SET=======")
+# batches_idx = list(SortishSampler(test_texts_en, key=lambda x: len(test_texts_en[x]), bs=PREDICT_BATCH_SIZE))
+# test_references = []
+# test_hypotheses = []
+# nb_texts = len(test_texts_en)
+# nb_batches = nb_texts//PREDICT_BATCH_SIZE
+# itotok_fr = Itotok(itos)
+# for l in range(nb_batches):
+#     print("Batch:",l)
+#     X_batch = torch.from_numpy(pad_batch(test_texts_en[batches_idx[l*PREDICT_BATCH_SIZE:(l+1)*PREDICT_BATCH_SIZE]])).type(torch.LongTensor).to(DEVICE)
+#     Y_batch = test_texts_fr[batches_idx[l*PREDICT_BATCH_SIZE:(l+1)*PREDICT_BATCH_SIZE]]
+#     for i in range(Y_batch.shape[0]):
+#         test_references.append([itotok_fr(list(Y_batch[i]))])
+#     hypotheses = tr.predict(X_batch)
+#     for i in range(len(hypotheses)):
+#         test_hypotheses.append(itotok_fr(hypotheses[i]))
+# for i, phrases in enumerate(zip(test_references, test_hypotheses)):
+#     print(phrases[0])
+#     print(phrases[1])
+#     print("")
+#     if i==5:
+#         break
+# BLEU = nltk.translate.bleu_score.corpus_bleu(test_references, test_hypotheses)
+# print(BLEU)
