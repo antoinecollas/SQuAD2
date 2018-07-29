@@ -17,34 +17,40 @@ UNKNOW_WORD = '_unk_'
 PADDING_WORD = '_pad_'
 MAX_VOCAB = 1000000
 MIN_FREQ = 0
+NUMP_OPS_BPE = 10
 
 #files
 FOLDER = "training-giga-fren/"
-SIZE = "10_000" #number of pair of phrases
-RAW_EN = FOLDER + "giga-fren.release2.fixed_" + SIZE + ".en"
-RAW_FR = FOLDER + "giga-fren.release2.fixed_" + SIZE + ".fr"
-PREPROCESSED_EN_TEXTS = FOLDER + "texts_" + SIZE + ".en.pickle"
-PREPROCESSED_EN_STOI = FOLDER + "stoi_" + SIZE + ".en.pickle"
-PREPROCESSED_EN_ITOS = FOLDER + "itos_" + SIZE + ".en.pickle"
-PREPROCESSED_FR_TEXTS = FOLDER + "texts_" + SIZE + ".fr.pickle"
-PREPROCESSED_FR_STOI = FOLDER + "stoi_" + SIZE + ".fr.pickle"
-PREPROCESSED_FR_ITOS = FOLDER + "itos_" + SIZE + ".fr.pickle"
+TRAIN_SUFFIX = ".train"
+TEST_SUFFIX = ".test"
+EN_SUFFIX = ".en"
+FR_SUFFIX = ".fr"
+SIZE = "100" #number of pair of phrases
+RAW = FOLDER + "giga-fren.release2.fixed_" + SIZE
+#bpe files
+CODES_FILE = FOLDER + "codes_file_" + SIZE + "_" + str(NUMP_OPS_BPE)
+VOCAB_FILE = FOLDER + "vocab_" + SIZE + "_" + str(NUMP_OPS_BPE)
+BPE = "BPE"
+PREPROCESSED_TEXTS = FOLDER + "texts_" + SIZE + ".pickle"
+PREPROCESSED_STOI = FOLDER + "stoi_" + SIZE + ".pickle"
+PREPROCESSED_ITOS = FOLDER + "itos_" + SIZE + ".pickle"
+
 
 #model
 PRETRAIN = False
 TRAIN = True
 PATH_WEIGHTS = "./weights_" + SIZE
 #hyperparameters
-NB_LAYERS = 1
+NB_LAYERS = 2
 NB_HEADS = 2
-D_MODEL = 32
-NB_NEURONS = 64
-WARMUP_STEPS = 10
+D_MODEL = 64
+NB_NEURONS = 128
+WARMUP_STEPS = 100
 
 #constants for training
 TRAIN_SPLIT = 0.8
 NB_EPOCH = 300
-BATCH_SIZE = 50
-MAX_SEQ = D_MODEL
+BATCH_SIZE = 10
+MAX_SEQ = 2000
 
 PREDICT_BATCH_SIZE = 50

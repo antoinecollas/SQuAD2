@@ -1,46 +1,27 @@
-import sys
-sys.path.append("../../fastai/")
+import sys, pickle, time, math, random, nltk
 sys.path.append("../")
-from fastai.text import *
-import pickle
-import time
-import math
-import random
+import numpy as np
 from translator import *
 from constants import *
 from prepare_data import *
-import nltk
+from sampler import *
 
 print("====LOAD PREPROCESSED DATA====")
-t0 = time.time()
-with open(PREPROCESSED_EN_TEXTS, 'rb') as f:
+with open(PREPROCESSED_TEXTS+EN_SUFFIX+TRAIN_SUFFIX, 'rb') as f:
     texts_en = pickle.load(f)
-with open(PREPROCESSED_EN_STOI, 'rb') as f:
-    dict_en = pickle.load(f)
-    stoi_en = collections.defaultdict(unknow_word, dict_en)
-with open(PREPROCESSED_EN_ITOS, 'rb') as f:
-    itos_en = pickle.load(f)
-t1 = time.time()
-total = t1-t0
-print("time to load english=",total)
-
-t0 = time.time()
-with open(PREPROCESSED_FR_TEXTS, 'rb') as f:
+with open(PREPROCESSED_TEXTS+FR_SUFFIX+TRAIN_SUFFIX, 'rb') as f:
     texts_fr = pickle.load(f)
-with open(PREPROCESSED_FR_STOI, 'rb') as f:
-    dict_fr = pickle.load(f)
-    stoi_fr = collections.defaultdict(unknow_word, dict_fr)
-with open(PREPROCESSED_FR_ITOS, 'rb') as f:
-    itos_fr = pickle.load(f)
-t1 = time.time()
-total = t1-t0
-print("time to load french=",total)
+with open(PREPROCESSED_STOI, 'rb') as f:
+    dicti = pickle.load(f)
+    stoi = collections.defaultdict(unknow_word, dicti)
+with open(PREPROCESSED_ITOS, 'rb') as f:
+    itos = pickle.load(f)
 
 print("========REMOVE LONGEST PHRASES========")
 #we remove french texts which are longer than MAX_SEQ (for memory and computation)
 sorted_idx = list(SortSampler(texts_fr, key=lambda x: len(texts_fr[x])))
-# print(itotok(itos_en, texts_en[sorted_idx[0]]))
-# print(itotok(itos_fr, texts_fr[sorted_idx[1000]]))
+# print(itotok(itos, texts_en[sorted_idx[0]]))
+# print(itotok(itos, texts_fr[sorted_idx[1000]]))
 to_remove = []
 for idx in sorted_idx:
     length = len(texts_fr[idx])
@@ -52,22 +33,6 @@ to_remove = np.array(to_remove)
 print(len(to_remove), "phases removed")
 texts_en = np.delete(texts_en, to_remove)
 texts_fr = np.delete(texts_fr, to_remove)
-
-print("========PREPARATION OF TRAIN AND TEST DATASETS========")
-nb_texts = len(texts_en)
-nb_train = math.floor(nb_texts*TRAIN_SPLIT)
-idx = list(range(nb_texts))
-random.shuffle(idx)
-idx_train = idx[:nb_train]
-idx_test = idx[nb_train:]
-train_texts_en = texts_en[idx_train]
-# print(train_texts_en.shape)
-train_texts_fr = texts_fr[idx_train]
-# print(train_texts_en[:2])
-test_texts_en = texts_en[idx_test]
-# print(test_texts_en.shape)
-# print(test_texts_en[:2])
-test_texts_fr = texts_fr[idx_test]
 
 def pad_batch(batch, length=None):
     if length is None:
@@ -85,14 +50,13 @@ def pad_batch(batch, length=None):
         result[k] = np.array(phrase)
         k+=1
     return result
-
-batches_idx = list(SortishSampler(train_texts_en, key=lambda x: len(train_texts_en[x]), bs=BATCH_SIZE))
-nb_texts = len(train_texts_en)
+batches_idx = list(SortishSampler(texts_en, key=lambda x: len(texts_en[x]), bs=BATCH_SIZE))
+nb_texts = len(texts_en)
 nb_batches = nb_texts//BATCH_SIZE
 if nb_batches<=2:
     raise ValueError('There must be at least 2 batches.')
 
-tr = Translator(vocabulary_size_in=len(stoi_en),vocabulary_size_out=len(stoi_fr),max_seq=MAX_SEQ,nb_layers=NB_LAYERS,nb_heads=NB_HEADS,d_model=D_MODEL,nb_neurons=NB_NEURONS,warmup_steps=WARMUP_STEPS)
+tr = Translator(vocabulary_size_in=len(stoi),vocabulary_size_out=len(stoi),max_seq=MAX_SEQ,nb_layers=NB_LAYERS,nb_heads=NB_HEADS,d_model=D_MODEL,nb_neurons=NB_NEURONS,warmup_steps=WARMUP_STEPS)
 if PRETRAIN:
     tr.load_state_dict(torch.load(PATH_WEIGHTS))
 tr.to(DEVICE)
@@ -108,24 +72,24 @@ if TRAIN:
         for l in range(nb_batches):
             # if l%(nb_batches//10)==0:
             #     print("Batch:",l)
-            X_batch = torch.from_numpy(pad_batch(train_texts_en[batches_idx[l*BATCH_SIZE:(l+1)*BATCH_SIZE]])).type(torch.LongTensor).to(DEVICE)
-            Y_batch = torch.from_numpy(pad_batch(train_texts_fr[batches_idx[l*BATCH_SIZE:(l+1)*BATCH_SIZE]])).type(torch.LongTensor).to(DEVICE)
+            X_batch = torch.from_numpy(pad_batch(texts_en[batches_idx[l*BATCH_SIZE:(l+1)*BATCH_SIZE]])).type(torch.LongTensor).to(DEVICE)
+            Y_batch = torch.from_numpy(pad_batch(texts_fr[batches_idx[l*BATCH_SIZE:(l+1)*BATCH_SIZE]])).type(torch.LongTensor).to(DEVICE)
             loss = loss + tr.fit(X_batch, Y_batch)
         torch.save(tr.state_dict(), PATH_WEIGHTS)
         print(loss/nb_batches)
 
 print("=======EVALUATION=======")
 print("=======BLEU ON TRAIN SET=======")
-batches_idx = list(SortishSampler(train_texts_en, key=lambda x: len(train_texts_en[x]), bs=PREDICT_BATCH_SIZE))
+batches_idx = list(SortishSampler(texts_en, key=lambda x: len(texts_en[x]), bs=PREDICT_BATCH_SIZE))
 train_references = []
 train_hypotheses = []
-nb_texts = len(train_texts_en)
+nb_texts = len(texts_en)
 nb_batches = nb_texts//PREDICT_BATCH_SIZE
-itotok_fr = Itotok(itos_fr)
+itotok_fr = Itotok(itos)
 for l in range(nb_batches):
     print("Batch:",l)
-    X_batch = torch.from_numpy(pad_batch(train_texts_en[batches_idx[l*PREDICT_BATCH_SIZE:(l+1)*PREDICT_BATCH_SIZE]])).type(torch.LongTensor).to(DEVICE)
-    Y_batch = train_texts_fr[batches_idx[l*PREDICT_BATCH_SIZE:(l+1)*PREDICT_BATCH_SIZE]]
+    X_batch = torch.from_numpy(pad_batch(texts_en[batches_idx[l*PREDICT_BATCH_SIZE:(l+1)*PREDICT_BATCH_SIZE]])).type(torch.LongTensor).to(DEVICE)
+    Y_batch = texts_fr[batches_idx[l*PREDICT_BATCH_SIZE:(l+1)*PREDICT_BATCH_SIZE]]
     for i in range(Y_batch.shape[0]):
         train_references.append([itotok_fr(list(Y_batch[i]))])
     hypotheses = tr.predict(X_batch)
@@ -146,7 +110,7 @@ test_references = []
 test_hypotheses = []
 nb_texts = len(test_texts_en)
 nb_batches = nb_texts//PREDICT_BATCH_SIZE
-itotok_fr = Itotok(itos_fr)
+itotok_fr = Itotok(itos)
 for l in range(nb_batches):
     print("Batch:",l)
     X_batch = torch.from_numpy(pad_batch(test_texts_en[batches_idx[l*PREDICT_BATCH_SIZE:(l+1)*PREDICT_BATCH_SIZE]])).type(torch.LongTensor).to(DEVICE)
