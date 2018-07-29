@@ -5,8 +5,8 @@ channels:
 - peterjc123
 dependencies:
 - scipy
-# - cuda90
-# - cudnn
+- cuda90
+- cudnn
 - numpy
 - ipython
 - jupyter
