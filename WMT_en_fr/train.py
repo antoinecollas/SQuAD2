@@ -92,7 +92,7 @@ nb_batches = nb_texts//BATCH_SIZE
 if nb_batches<=2:
     raise ValueError('There must be at least 2 batches.')
 
-tr = Translator(vocabulary_size_in=len(stoi_en),vocabulary_size_out=len(stoi_fr),max_seq=MAX_SEQ,nb_layers=NB_LAYERS,nb_heads=NB_HEADS,d_model=D_MODEL,nb_neurons=NB_NEURONS)
+tr = Translator(vocabulary_size_in=len(stoi_en),vocabulary_size_out=len(stoi_fr),max_seq=MAX_SEQ,nb_layers=NB_LAYERS,nb_heads=NB_HEADS,d_model=D_MODEL,nb_neurons=NB_NEURONS,warmup_steps=WARMUP_STEPS)
 if PRETRAIN:
     tr.load_state_dict(torch.load(PATH_WEIGHTS))
 tr.to(DEVICE)
@@ -106,8 +106,8 @@ if TRAIN:
         print("=======Epoch:=======",k)
         loss=0
         for l in range(nb_batches):
-            if l%200==0:
-                print("Batch:",l)
+            # if l%(nb_batches//10)==0:
+            #     print("Batch:",l)
             X_batch = torch.from_numpy(pad_batch(train_texts_en[batches_idx[l*BATCH_SIZE:(l+1)*BATCH_SIZE]])).type(torch.LongTensor).to(DEVICE)
             Y_batch = torch.from_numpy(pad_batch(train_texts_fr[batches_idx[l*BATCH_SIZE:(l+1)*BATCH_SIZE]])).type(torch.LongTensor).to(DEVICE)
             loss = loss + tr.fit(X_batch, Y_batch)
