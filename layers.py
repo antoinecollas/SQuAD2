@@ -55,7 +55,7 @@ def get_mask(X, Y, avoid_subsequent_info=False):
     # line = (X==PADDING_IDX).type(torch.FloatTensor)
     # line[line!=0] = float('-inf')
     # line = line.reshape(X.size(0), 1, X.size(1)).repeat(1, Y.size(1), 1).transpose(-2,-1)
-    col = (Y==PADDING_IDX).type(torch.FloatTensor)
+    col = (Y==PADDING_IDX).type(torch.FloatTensor).to(DEVICE)
     col[col!=0] = float('-inf')
     # print(col.shape)
     # print(X.shape)
@@ -64,8 +64,8 @@ def get_mask(X, Y, avoid_subsequent_info=False):
     mask1 = col
     if avoid_subsequent_info:
         mask2_shape = (X.size(0), X.size(1), X.size(1))
-        mask2 = np.triu(np.ones(mask2_shape), k=1)
-        mask2 = torch.from_numpy(mask2).type(torch.FloatTensor)
+        mask2 = torch.triu(torch.ones(mask2_shape[1:])).type(torch.FloatTensor).to(DEVICE) - torch.eye(mask2_shape[1]).to(DEVICE)
+        mask2 = mask2.view(1, mask2_shape[1], mask2_shape[2]).expand(mask2_shape)
         mask2[mask2!=0] = float('-inf')
         mask1 = mask1+mask2
     return mask1.to(DEVICE)

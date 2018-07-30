@@ -68,6 +68,7 @@ class Translator(nn.Module):
         temp[:,0] = BOS_IDX
         enc = self.Transformer.forward_encoder(X)
         for j in range(1, max_seq):
+            print(j)
             output = self.Transformer.forward_decoder(X, enc, temp)
             output = torch.argmax(output, dim=-1)
             temp[:,j] = output[:,j-1]
