@@ -18,3 +18,4 @@ dependencies:
 - pytorch>=0.4
 - pip:
   - nltk
+  - subword-nmt
