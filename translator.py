@@ -27,9 +27,9 @@ class CustomOptimizer(optim.Adam):
         super().step()
 
 class Translator(nn.Module):
-    def __init__(self, vocabulary_size_in, vocabulary_size_out, max_seq=100, nb_layers=6, nb_heads=8, d_model=512, nb_neurons = 2048, dropout=0.1, warmup_steps=4000):
+    def __init__(self, vocabulary_size_in, vocabulary_size_out, share_weights=True, max_seq=100, nb_layers=6, nb_heads=8, d_model=512, nb_neurons = 2048, dropout=0.1, warmup_steps=4000):
         super(Translator, self).__init__()
-        self.Transformer = Transformer(vocabulary_size_in, vocabulary_size_out, max_seq, nb_layers, nb_heads, d_model, nb_neurons, dropout)
+        self.Transformer = Transformer(vocabulary_size_in, vocabulary_size_out, share_weights, max_seq, nb_layers, nb_heads, d_model, nb_neurons, dropout)
         self.criterion = nn.CrossEntropyLoss()
         # print(list(self.Transformer.parameters()))
         self.optimizer = CustomOptimizer(self.Transformer.parameters(), d_model=d_model, warmup_steps=warmup_steps)

@@ -14,7 +14,7 @@ import time
 # torch.manual_seed(1)
 
 class Transformer(nn.Module):
-    def __init__(self, vocabulary_size_in, vocabulary_size_out, max_seq=100, nb_layers=6, nb_heads=8, d_model=512, nb_neurons = 2048, dropout=0.1):
+    def __init__(self, vocabulary_size_in, vocabulary_size_out, share_weights=True, max_seq=100, nb_layers=6, nb_heads=8, d_model=512, nb_neurons = 2048, dropout=0.1):
         super(Transformer, self).__init__()
         self.max_seq = max_seq
         self.EmbeddingSrc = Embedding(vocabulary_size=vocabulary_size_in, d_model=d_model)
@@ -22,6 +22,9 @@ class Transformer(nn.Module):
         self.Encoder = Encoder(nb_layers=nb_layers, nb_heads=nb_heads, d_model=d_model, nb_neurons=nb_neurons, dropout=dropout)
         self.Decoder = Decoder(nb_layers=nb_layers, nb_heads=nb_heads, d_model=d_model, nb_neurons=nb_neurons, dropout=dropout)
         self.Linear = nn.Linear(d_model, vocabulary_size_out, bias=False)
+        if share_weights:
+            self.EmbeddingSrc.lookup_table.weight = self.Linear.weight
+            self.EmbeddingTgt.lookup_table.weight = self.Linear.weight
 
     def forward_encoder(self, src):
         '''
