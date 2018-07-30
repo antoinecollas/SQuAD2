@@ -9,8 +9,12 @@ from sampler import *
 print("====LOAD PREPROCESSED DATA====")
 with open(PREPROCESSED_TEXTS+EN_SUFFIX+TRAIN_SUFFIX, 'rb') as f:
     texts_en = pickle.load(f)
+with open(PREPROCESSED_TEXTS+EN_SUFFIX+TEST_SUFFIX, 'rb') as f:
+    test_texts_en = pickle.load(f)
 with open(PREPROCESSED_TEXTS+FR_SUFFIX+TRAIN_SUFFIX, 'rb') as f:
     texts_fr = pickle.load(f)
+with open(PREPROCESSED_TEXTS+FR_SUFFIX+TEST_SUFFIX, 'rb') as f:
+    test_texts_fr = pickle.load(f)
 with open(PREPROCESSED_STOI, 'rb') as f:
     dicti = pickle.load(f)
     stoi = collections.defaultdict(unknow_word, dicti)
@@ -105,6 +109,20 @@ for l in range(nb_batches):
     hypotheses = tr.predict(X_batch)
     for i in range(len(hypotheses)):
         train_hypotheses.append(itotok_fr(hypotheses[i]))
+
+def subwords_to_string(subwords):
+    string = ""
+    for subword in subwords:
+        if subword[-2:] == "@@":
+            string += subword[:-2]
+        elif subword != PADDING_WORD:
+            string += subword + " "
+    return string
+
+for i, phrases in enumerate(zip(train_references, train_hypotheses)):
+    train_references[i][0] = subwords_to_string(phrases[0][0])
+    train_hypotheses[i] = subwords_to_string(phrases[1])
+
 for i, phrases in enumerate(zip(train_references, train_hypotheses)):
     print(phrases[0])
     print(phrases[1])
@@ -114,27 +132,32 @@ for i, phrases in enumerate(zip(train_references, train_hypotheses)):
 BLEU = nltk.translate.bleu_score.corpus_bleu(train_references, train_hypotheses)
 print(BLEU)
 
-# print("=======BLEU ON TEST SET=======")
-# batches_idx = list(SortishSampler(test_texts_en, key=lambda x: len(test_texts_en[x]), bs=PREDICT_BATCH_SIZE))
-# test_references = []
-# test_hypotheses = []
-# nb_texts = len(test_texts_en)
-# nb_batches = nb_texts//PREDICT_BATCH_SIZE
-# itotok_fr = Itotok(itos)
-# for l in range(nb_batches):
-#     print("Batch:",l)
-#     X_batch = torch.from_numpy(pad_batch(test_texts_en[batches_idx[l*PREDICT_BATCH_SIZE:(l+1)*PREDICT_BATCH_SIZE]])).type(torch.LongTensor).to(DEVICE)
-#     Y_batch = test_texts_fr[batches_idx[l*PREDICT_BATCH_SIZE:(l+1)*PREDICT_BATCH_SIZE]]
-#     for i in range(Y_batch.shape[0]):
-#         test_references.append([itotok_fr(list(Y_batch[i]))])
-#     hypotheses = tr.predict(X_batch)
-#     for i in range(len(hypotheses)):
-#         test_hypotheses.append(itotok_fr(hypotheses[i]))
-# for i, phrases in enumerate(zip(test_references, test_hypotheses)):
-#     print(phrases[0])
-#     print(phrases[1])
-#     print("")
-#     if i==5:
-#         break
-# BLEU = nltk.translate.bleu_score.corpus_bleu(test_references, test_hypotheses)
-# print(BLEU)
+print("=======BLEU ON TEST SET=======")
+batches_idx = list(SortishSampler(test_texts_en, key=lambda x: len(test_texts_en[x]), bs=PREDICT_BATCH_SIZE))
+test_references = []
+test_hypotheses = []
+nb_texts = len(test_texts_en)
+nb_batches = nb_texts//PREDICT_BATCH_SIZE
+itotok_fr = Itotok(itos)
+for l in range(nb_batches):
+    print("Batch:",l)
+    X_batch = torch.from_numpy(pad_batch(test_texts_en[batches_idx[l*PREDICT_BATCH_SIZE:(l+1)*PREDICT_BATCH_SIZE]])).type(torch.LongTensor).to(DEVICE)
+    Y_batch = test_texts_fr[batches_idx[l*PREDICT_BATCH_SIZE:(l+1)*PREDICT_BATCH_SIZE]]
+    for i in range(Y_batch.shape[0]):
+        test_references.append([itotok_fr(list(Y_batch[i]))])
+    hypotheses = tr.predict(X_batch)
+    for i in range(len(hypotheses)):
+        test_hypotheses.append(itotok_fr(hypotheses[i]))
+
+for i, phrases in enumerate(zip(test_references, test_hypotheses)):
+    test_references[i][0] = subwords_to_string(phrases[0][0])
+    test_hypotheses[i] = subwords_to_string(phrases[1])
+
+for i, phrases in enumerate(zip(test_references, test_hypotheses)):
+    print(phrases[0])
+    print(phrases[1])
+    print("")
+    if i==5:
+        break
+BLEU = nltk.translate.bleu_score.corpus_bleu(test_references, test_hypotheses)
+print(BLEU)

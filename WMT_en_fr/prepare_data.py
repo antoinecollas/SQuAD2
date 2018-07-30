@@ -64,8 +64,8 @@ def slip_train_test(filename_source, filename_target, train_suffix, test_suffix,
         for phrase in test_phrases_tgt:
             f.write("%s" % phrase)
 
-def learn_apply_bpe(filename_source, filename_target, num_operations, codes_file, vocab_file_source, \
-    vocab_file_target, vocabulary_threshold, file_bpe_source, file_bpe_target):
+def learn_bpe(filename_source, filename_target, num_operations, codes_file, vocab_file_source, \
+    vocab_file_target):
     t0 = time.time()
     command = "subword-nmt learn-joint-bpe-and-vocab --input " + filename_source +  " " \
         + filename_target + " -s " + str(num_operations) + " -o " + codes_file + \
@@ -74,6 +74,9 @@ def learn_apply_bpe(filename_source, filename_target, num_operations, codes_file
     t1 = time.time()
     total = t1-t0
     print("time to learn bpe=",total)
+
+def apply_bpe(filename_source, filename_target, codes_file, vocab_file_source, \
+    vocab_file_target, vocabulary_threshold, file_bpe_source, file_bpe_target):
     t0 = time.time()
     command = "subword-nmt apply-bpe -c " + codes_file + " --vocabulary " + vocab_file_source + \
         " --vocabulary-threshold " + str(vocabulary_threshold) + " < " + filename_source + " > " + \
@@ -87,20 +90,23 @@ def learn_apply_bpe(filename_source, filename_target, num_operations, codes_file
     total = t1-t0
     print("time to apply bpe=",total)
 
-def get_itos_stoi(filename_bpe_source, filename_bpe_target):
+def tokenize(filename_bpe_source, filename_bpe_target):
     t0 = time.time()
     with open(filename_bpe_source,"r") as f:
         phrases_source = f.readlines()
     with open(filename_bpe_target,"r") as f:
         phrases_target = f.readlines()
-    for phrase in phrases_source:
-        phrase = phrase.split(" ")
-    for phrase in phrases_target:
-        phrase = phrase.split(" ")
-    phrases = phrases_source + phrases_target
+    for i, phrase in enumerate(phrases_source):
+        phrases_source[i] = phrase.split(" ")
+    for i, phrase in enumerate(phrases_target):
+        phrases_target[i] = phrase.split(" ")
     t1 = time.time()
     total = t1-t0
-    print("time split=",total)
+    print("time tokenize (split)=",total)
+    return phrases_source, phrases_target
+
+def get_itos_stoi(phrases_source, phrases_target):
+    phrases = phrases_source + phrases_target
     t0 = time.time()
     freq = collections.Counter(p for o in phrases for p in o)
     # print("Most common words:", freq.most_common(MAX_VOCAB))
@@ -117,30 +123,40 @@ def get_itos_stoi(filename_bpe_source, filename_bpe_target):
     stoi = stoi_from_itos(itos)
     t1 = time.time()
     total = t1-t0
-    return phrases_source, phrases_target, itos, stoi
+    return itos, stoi
 
 def main():
     print("========SPLIT TO TRAIN AND TEST FILES========")
     slip_train_test(RAW+EN_SUFFIX, RAW+FR_SUFFIX, TRAIN_SUFFIX, TEST_SUFFIX, TRAIN_SPLIT)
 
     print("========SUBWORDS========")
-    learn_apply_bpe(RAW+EN_SUFFIX+TRAIN_SUFFIX, RAW+FR_SUFFIX+TRAIN_SUFFIX, NUMP_OPS_BPE, \
+    learn_bpe(RAW+EN_SUFFIX+TRAIN_SUFFIX, RAW+FR_SUFFIX+TRAIN_SUFFIX, NUMP_OPS_BPE, \
+        CODES_FILE, VOCAB_FILE+EN_SUFFIX, VOCAB_FILE+FR_SUFFIX)
+    apply_bpe(RAW+EN_SUFFIX+TRAIN_SUFFIX, RAW+FR_SUFFIX+TRAIN_SUFFIX, \
         CODES_FILE, VOCAB_FILE+EN_SUFFIX, VOCAB_FILE+FR_SUFFIX, MIN_FREQ, \
         BPE+EN_SUFFIX+TRAIN_SUFFIX, BPE+FR_SUFFIX+TRAIN_SUFFIX)
+    apply_bpe(RAW+EN_SUFFIX+TEST_SUFFIX, RAW+FR_SUFFIX+TEST_SUFFIX, \
+        CODES_FILE, VOCAB_FILE+EN_SUFFIX, VOCAB_FILE+FR_SUFFIX, MIN_FREQ, \
+        BPE+EN_SUFFIX+TEST_SUFFIX, BPE+FR_SUFFIX+TEST_SUFFIX)
 
     print("====STOI AND ITOS====")
-    tok_en, tok_fr, itos, stoi = get_itos_stoi(BPE+EN_SUFFIX+TRAIN_SUFFIX, BPE+FR_SUFFIX+TRAIN_SUFFIX)
+    train_tok_en, train_tok_fr = tokenize(BPE+EN_SUFFIX+TRAIN_SUFFIX, BPE+FR_SUFFIX+TRAIN_SUFFIX)
+    itos, stoi = get_itos_stoi(train_tok_en, train_tok_fr)
+
+    test_tok_en, test_tok_fr = tokenize(BPE+EN_SUFFIX+TEST_SUFFIX, BPE+FR_SUFFIX+TEST_SUFFIX)
 
     print("====TOK TO INT ENGLISH====")
     t0 = time.time()
-    texts_en = np.array(Pool(NCPUS).map(Toktoi(stoi), tok_en))
+    train_texts_en = np.array(Pool(NCPUS).map(Toktoi(stoi), train_tok_en))
+    test_texts_en = np.array(Pool(NCPUS).map(Toktoi(stoi), test_tok_en))
     t1 = time.time()
     total = t1-t0
     print("time tok to int=",total)
 
     print("====TOK TO INT FRENCH====")
     t0 = time.time()
-    texts_fr = np.array(Pool(NCPUS).map(Toktoi(stoi), tok_fr))
+    train_texts_fr = np.array(Pool(NCPUS).map(Toktoi(stoi), train_tok_fr))
+    test_texts_fr = np.array(Pool(NCPUS).map(Toktoi(stoi), test_tok_fr))
     t1 = time.time()
     total = t1-t0
     print("time tok to int=",total)
@@ -148,14 +164,18 @@ def main():
     print("====PICKLE====")
     t0 = time.time()
     with open(PREPROCESSED_TEXTS+EN_SUFFIX+TRAIN_SUFFIX, 'wb') as f:
-        pickle.dump(texts_en, f, protocol=pickle.HIGHEST_PROTOCOL)
+        pickle.dump(train_texts_en, f, protocol=pickle.HIGHEST_PROTOCOL)
+    with open(PREPROCESSED_TEXTS+EN_SUFFIX+TEST_SUFFIX, 'wb') as f:
+        pickle.dump(test_texts_en, f, protocol=pickle.HIGHEST_PROTOCOL)
     t1 = time.time()
     total = t1-t0
     print("time english pickle=",total)
 
     t0 = time.time()
     with open(PREPROCESSED_TEXTS+FR_SUFFIX+TRAIN_SUFFIX, 'wb') as f:
-        pickle.dump(texts_fr, f, protocol=pickle.HIGHEST_PROTOCOL)
+        pickle.dump(train_texts_fr, f, protocol=pickle.HIGHEST_PROTOCOL)
+    with open(PREPROCESSED_TEXTS+FR_SUFFIX+TEST_SUFFIX, 'wb') as f:
+        pickle.dump(test_texts_fr, f, protocol=pickle.HIGHEST_PROTOCOL)
     t1 = time.time()
     total = t1-t0
     print("time french pickle=",total)
