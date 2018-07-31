@@ -1,13 +1,12 @@
 import numpy as np
-import math
-import torch
+import math, torch, time
+# from apex import amp
 import torch.autograd as autograd
 import torch.nn as nn
 import torch.nn.functional as F
 import torch.optim as optim
 from transformer import Transformer
 from constants import *
-import time
 
 # torch.manual_seed(1)
 
@@ -19,6 +18,7 @@ class CustomOptimizer(optim.Adam):
         self.step_num = 1
 
     def set_next_lr(self):
+        # self.lr = (self.d_model**(-0.5) * min(self.step_num**(-0.5), self.step_num*(self.warmup_steps**(-1.5))))/10
         self.lr = self.d_model**(-0.5) * min(self.step_num**(-0.5), self.step_num*(self.warmup_steps**(-1.5)))
         self.step_num = self.step_num + 1
     
@@ -33,7 +33,8 @@ class Translator(nn.Module):
         self.criterion = nn.CrossEntropyLoss()
         # print(list(self.Transformer.parameters()))
         self.optimizer = CustomOptimizer(self.Transformer.parameters(), d_model=d_model, warmup_steps=warmup_steps)
-    
+        # self.amp_handle = amp.init()
+
     def count_parameters(self):
         return sum(p.numel() for p in self.parameters() if p.requires_grad)
 
@@ -51,6 +52,8 @@ class Translator(nn.Module):
         target = Y.contiguous().view(-1)
         self.optimizer.zero_grad()
         loss = self.criterion(output, target)
+        # with self.amp_handle.scale_loss(loss, self.optimizer) as scaled_loss:
+        #     scaled_loss.backward()
         loss.backward()
         self.optimizer.step()
         running_loss = loss.item()

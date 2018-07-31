@@ -19,7 +19,7 @@ def positionalEncoding(nb_words, nb_dimensions):
         Z = np.zeros((nb_words, nb_dimensions))
         Z[:,0::2] = temp1[:,0::2]
         Z[:,1::2] = temp2[:,1::2]
-        return torch.from_numpy(Z).type(torch.FloatTensor).to(DEVICE)
+        return torch.from_numpy(Z).to(DEVICE, TYPE)
 
 class Embedding(nn.Module):
     def __init__(self, vocabulary_size, d_model=512):
@@ -55,7 +55,7 @@ def get_mask(X, Y, avoid_subsequent_info=False):
     # line = (X==PADDING_IDX).type(torch.FloatTensor)
     # line[line!=0] = float('-inf')
     # line = line.reshape(X.size(0), 1, X.size(1)).repeat(1, Y.size(1), 1).transpose(-2,-1)
-    col = (Y==PADDING_IDX).type(torch.FloatTensor).to(DEVICE)
+    col = (Y==PADDING_IDX).to(DEVICE, TYPE)
     col[col!=0] = float('-inf')
     # print(col.shape)
     # print(X.shape)
@@ -64,11 +64,11 @@ def get_mask(X, Y, avoid_subsequent_info=False):
     mask1 = col
     if avoid_subsequent_info:
         mask2_shape = (X.size(0), X.size(1), X.size(1))
-        mask2 = torch.triu(torch.ones(mask2_shape[1:])).type(torch.FloatTensor).to(DEVICE) - torch.eye(mask2_shape[1]).to(DEVICE)
+        mask2 = torch.triu(torch.ones(mask2_shape[1:])).to(DEVICE, TYPE) - torch.eye(mask2_shape[1]).to(DEVICE, TYPE)
         mask2 = mask2.view(1, mask2_shape[1], mask2_shape[2]).expand(mask2_shape)
         mask2[mask2!=0] = float('-inf')
         mask1 = mask1+mask2
-    return mask1.to(DEVICE)
+    return mask1.to(DEVICE, TYPE)
 
 def scaled_dot_product_attention(Q, K, V, mask=None):
     dk = K.shape[-1]

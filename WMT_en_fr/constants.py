@@ -3,6 +3,7 @@ import os
 #hardware
 NCPUS=os.cpu_count()
 DEVICE = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+TYPE = torch.float32
 
 #constants for the preparation of WMT en_fr
 #/!\ the idx must be int in [0,3] and words must be different from vocabulary of the texts
@@ -43,7 +44,7 @@ TEST = False
 PATH_WEIGHTS = "./weights_" + SIZE
 #hyperparameters
 SHARE_WEIGHTS = True
-NB_LAYERS = 2
+NB_LAYERS = 4
 NB_HEADS = 2
 D_MODEL = 128
 NB_NEURONS = 256
@@ -51,8 +52,8 @@ WARMUP_STEPS = 2000
 
 #constants for training
 TRAIN_SPLIT = 0.8
-NB_EPOCH = 10
-BATCH_SIZE = 700
+NB_EPOCH = 100000
+BATCH_SIZE = 350
 MAX_SEQ = 150
 
-PREDICT_BATCH_SIZE = 600
+PREDICT_BATCH_SIZE = 200
