@@ -21,7 +21,7 @@ class CustomOptimizer():
         # self.lr = (self.d_model**(-0.5) * min(self.step_num**(-0.5), self.step_num*(self.warmup_steps**(-1.5))))/10
         self.lr = self.d_model**(-0.5) * min(self.step_num**(-0.5), self.step_num*(self.warmup_steps**(-1.5)))
         for p in self.opt.param_groups:
-            p['lr'] = self.lr
+            p['lr'] = 0.001
         # print("learning rate=", self.lr)
         self.step_num = self.step_num + 1
     

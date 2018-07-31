@@ -10,16 +10,17 @@ from constants import *
 # torch.manual_seed(1)
 
 def positionalEncoding(nb_words, nb_dimensions):
-        X = np.arange(0, nb_words)
-        Y = np.arange(0, nb_dimensions)
-        Y, X = np.meshgrid(Y, X)
+        X = torch.arange(0, nb_words).to(DEVICE, TYPE)
+        Y = torch.arange(0, nb_dimensions).to(DEVICE, TYPE)
+        Y, X = torch.meshgrid((Y, X))
+        Y, X = Y.t(), X.t()
         TEMP = 10000
-        temp1 = np.sin(X/(np.power(TEMP, (2*Y)/nb_dimensions)))
-        temp2 = np.cos(X/(np.power(TEMP, (2*Y)/nb_dimensions)))
-        Z = np.zeros((nb_words, nb_dimensions))
+        temp1 = torch.sin(X/(torch.pow(TEMP, (2*Y)/nb_dimensions)))
+        temp2 = torch.cos(X/(torch.pow(TEMP, (2*Y)/nb_dimensions)))
+        Z = torch.zeros((nb_words, nb_dimensions)).to(DEVICE, TYPE)
         Z[:,0::2] = temp1[:,0::2]
         Z[:,1::2] = temp2[:,1::2]
-        return torch.from_numpy(Z).to(DEVICE, TYPE)
+        return Z
 
 class Embedding(nn.Module):
     def __init__(self, vocabulary_size, d_model=512):
