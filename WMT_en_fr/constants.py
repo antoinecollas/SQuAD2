@@ -26,7 +26,7 @@ TRAIN_SUFFIX = ".train"
 TEST_SUFFIX = ".test"
 EN_SUFFIX = ".en"
 FR_SUFFIX = ".fr"
-SIZE = "100" #number of pair of phrases
+SIZE = "1000" #number of pair of phrases
 RAW = FOLDER + "giga-fren.release2.fixed_" + SIZE
 #bpe files
 CODES_FILE = FOLDER + "codes_file_" + SIZE + "_" + str(NUMP_OPS_BPE)
@@ -45,8 +45,8 @@ PATH_WEIGHTS = "./weights_" + SIZE
 #hyperparameters
 SHARE_WEIGHTS = True
 NB_LAYERS = 1
-NB_HEADS = 2
-D_MODEL = 64
+NB_HEADS = 4
+D_MODEL = 128
 NB_NEURONS = 128
 WARMUP_STEPS = 100
 
