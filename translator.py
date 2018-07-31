@@ -10,9 +10,9 @@ from constants import *
 
 # torch.manual_seed(1)
 
-class CustomOptimizer(optim.Adam):
+class CustomOptimizer():
     def __init__(self, parameters, d_model, warmup_steps=4000, betas=(0.9,0.98), eps=1e-9):
-        super(CustomOptimizer, self).__init__(parameters, betas=betas, eps=eps)
+        self.opt = optim.Adam(parameters, betas=betas, eps=eps)
         self.d_model = d_model
         self.warmup_steps = warmup_steps
         self.step_num = 1
@@ -20,11 +20,17 @@ class CustomOptimizer(optim.Adam):
     def set_next_lr(self):
         # self.lr = (self.d_model**(-0.5) * min(self.step_num**(-0.5), self.step_num*(self.warmup_steps**(-1.5))))/10
         self.lr = self.d_model**(-0.5) * min(self.step_num**(-0.5), self.step_num*(self.warmup_steps**(-1.5)))
+        for p in self.opt.param_groups:
+            p['lr'] = self.lr
+        # print("learning rate=", self.lr)
         self.step_num = self.step_num + 1
     
+    def zero_grad(self):
+        self.opt.zero_grad()
+
     def step(self):
         self.lr = self.set_next_lr()
-        super().step()
+        self.opt.step()
 
 class Translator(nn.Module):
     def __init__(self, vocabulary_size_in, vocabulary_size_out, share_weights=True, max_seq=100, nb_layers=6, nb_heads=8, d_model=512, nb_neurons = 2048, dropout=0.1, warmup_steps=4000):
@@ -71,7 +77,7 @@ class Translator(nn.Module):
         temp[:,0] = BOS_IDX
         enc = self.Transformer.forward_encoder(X)
         for j in range(1, max_seq):
-            print(j)
+            # print(j)
             output = self.Transformer.forward_decoder(X, enc, temp)
             output = torch.argmax(output, dim=-1)
             temp[:,j] = output[:,j-1]
