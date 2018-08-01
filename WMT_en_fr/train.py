@@ -90,7 +90,8 @@ def main():
                 loss = loss + tr.fit(X_batch, Y_batch)
                 # t1 = time.time()
                 # print("time fit=", t1-t0)
-            torch.save(tr.state_dict(), PATH_WEIGHTS)
+            if k%50==0:
+                torch.save(tr.state_dict(), PATH_WEIGHTS)
             print(loss/nb_batches)
 
     if TEST:
