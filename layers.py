@@ -137,7 +137,7 @@ class PositionWiseFeedForward(nn.Module):
         self.nonlinearity = 'relu'
         gain = nn.init.calculate_gain(self.nonlinearity)
         std = gain / math.sqrt(d_model)
-        create_tensor = lambda size, std: nn.Parameter(nn.init.uniform_(torch.zeros(size, requires_grad=True), mean=0, std=std))
+        create_tensor = lambda size, std: nn.Parameter(nn.init.uniform_(torch.zeros(size, requires_grad=True), a=-std, b=std))
         self.W_1 = create_tensor((d_model, nb_neurons), std)
         self.b_1 = create_tensor(nb_neurons, std)
         std = 1 / math.sqrt(d_model)
