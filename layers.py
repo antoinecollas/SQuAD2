@@ -95,7 +95,7 @@ class MultiHeadAttention(nn.Module):
         #Initialize all the parameters. It follows the initialization of linear in pytorch:
         #https://pytorch.org/docs/stable/_modules/torch/nn/modules/linear.html#Linear
         stdv = 1. / math.sqrt(self.d_model)
-        create_tensor = lambda size, std: nn.Parameter(nn.init.normal_(torch.zeros(size, requires_grad=True), mean=0, std=std))
+        create_tensor = lambda size, std: nn.Parameter(nn.init.uniform_(torch.zeros(size, requires_grad=True), a=-std, b=std))
         self.W_q = create_tensor((h, self.d_model, self.d_k), stdv)
         self.W_k = create_tensor((h, self.d_model, self.d_k), stdv)
         self.W_v = create_tensor((h, self.d_model, self.d_v), stdv)
@@ -157,4 +157,4 @@ class PositionWiseFeedForward(nn.Module):
         nb_texts, nb_tokens, d_model = X.shape
         b_1 = self.b_1.repeat(nb_texts, nb_tokens, 1)
         b_2 = self.b_2.repeat(nb_texts, nb_tokens, 1)
-        return self.layer_norm(self.dropout(self.activation(X@self.W_1+b_1)@self.W_2+b_2)+X)
+        return self.layer_norm(self.dropout(self.dropout(self.activation(X@self.W_1+b_1))@self.W_2+b_2)+X)
