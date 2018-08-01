@@ -44,7 +44,7 @@ TEST = False
 PATH_WEIGHTS = "./weights_" + SIZE
 #hyperparameters
 SHARE_WEIGHTS = True
-NB_LAYERS = 6
+NB_LAYERS = 3
 NB_HEADS = 8
 D_MODEL = 256
 NB_NEURONS = 2048
