@@ -24,20 +24,27 @@ def main():
 
     print("========REMOVE LONGEST PHRASES========")
     #we remove french texts which are longer than MAX_SEQ (for memory and computation)
-    sorted_idx = list(SortSampler(texts_fr, key=lambda x: len(texts_fr[x])))
-    # print(itotok(itos, texts_en[sorted_idx[0]]))
-    # print(itotok(itos, texts_fr[sorted_idx[1000]]))
-    to_remove = []
-    for idx in sorted_idx:
-        length = len(texts_fr[idx])
-        if length <= MAX_SEQ:
-            break
-        else:
-            to_remove.append(idx)
-    to_remove = np.array(to_remove)
-    print(len(to_remove), "phases removed")
+    def longest(texts_fr):
+        sorted_idx = list(SortSampler(texts_fr, key=lambda x: len(texts_fr[x])))
+        # print(itotok(itos, texts_en[sorted_idx[0]]))
+        # print(itotok(itos, texts_fr[sorted_idx[1000]]))
+        to_remove = []
+        for idx in sorted_idx:
+            length = len(texts_fr[idx])
+            if length <= MAX_SEQ:
+                break
+            else:
+                to_remove.append(idx)
+        to_remove = np.array(to_remove)
+        return to_remove
+    to_remove = longest(texts_fr)
+    print(len(to_remove), "phases removed in training set")
     texts_en = np.delete(texts_en, to_remove)
     texts_fr = np.delete(texts_fr, to_remove)
+    to_remove = longest(test_texts_fr)
+    print(len(to_remove), "phases removed in test set")
+    test_texts_en = np.delete(test_texts_en, to_remove)
+    test_texts_fr = np.delete(test_texts_fr, to_remove)
 
     def pad_batch(batch, length=None):
         # t0 = time.time()
