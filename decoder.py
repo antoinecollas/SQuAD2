@@ -1,10 +1,5 @@
-import numpy as np
-import math
 import torch
-import torch.autograd as autograd
 import torch.nn as nn
-import torch.nn.functional as F
-import torch.optim as optim
 from layers import MultiHeadAttention, PositionWiseFeedForward, get_mask
 
 # torch.manual_seed(1)
@@ -30,5 +25,4 @@ class Decoder(nn.Module):
             output = self.MultiHeadAttention[i].forward(output,output,output,mask1)
             output = self.EncoderDecoderAttention[i].forward(output,X_encoder,X_encoder,mask2)
             output = self.PositionWiseFeedForward[i].forward(output)
-
         return output

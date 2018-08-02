@@ -1,15 +1,10 @@
-import numpy as np
-import math
-import torch
-import torch.autograd as autograd
+import torch, time
 import torch.nn as nn
 import torch.nn.functional as F
-import torch.optim as optim
 from layers import Embedding, get_mask
 from encoder import Encoder
 from decoder import Decoder
 from constants import *
-import time
 
 # torch.manual_seed(1)
 
