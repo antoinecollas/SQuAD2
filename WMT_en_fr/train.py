@@ -109,6 +109,7 @@ def main():
         print("Nb epochs=",NB_EPOCH)
         print("Nb batches=",data_iter.nb_batches)
         print("Nb train steps=",nb_train_steps)
+        tr.scheduler.plot_lr(nb_train_steps=nb_train_steps)
         tr.fit(data_iter, nb_epoch=NB_EPOCH)
         tr.plot_training_loss()
 

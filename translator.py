@@ -18,8 +18,20 @@ class PaperScheduler():
         self.warmup_steps = warmup_steps
         self.step_num = 1
 
+    def plot_lr(self, nb_train_steps):
+        lrs = [self._lr(self.d_model, step_num, self.warmup_steps) for step_num in range(1, nb_train_steps)]
+        plt.plot(range(1,nb_train_steps), lrs)
+        plt.xlabel('Training step')
+        plt.ylabel('learning rate')
+        plt.title('Learning rate for ' + str(nb_train_steps) + ' training steps.')
+        plt.show()
+
+    @staticmethod
+    def _lr(d_model, step_num, warmup_steps):
+        return d_model**(-0.5) * min(step_num**(-0.5), step_num*(warmup_steps**(-1.5)))
+
     def set_next_lr(self):
-        self.lr = self.d_model**(-0.5) * min(self.step_num**(-0.5), self.step_num*(self.warmup_steps**(-1.5)))
+        self.lr = self._lr(self.d_model, self.step_num, self.warmup_steps)
         for p in self.opt.param_groups:
             p['lr'] = self.lr
         # print("learning rate=", self.lr)
