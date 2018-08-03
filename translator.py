@@ -49,10 +49,10 @@ class Translator(nn.Module):
             data_iter: iterator which gives two batches: one of source language and one for target language
             nb_epoch: int
         '''
-        self.training_loss = []
+        self.training_loss_tab = []
         for k in range(nb_epoch):
             print("=======Epoch:=======",k)
-            loss=0
+            training_loss = 0
             for i, (X, Y) in enumerate(data_iter):
                 batch_size = X.shape[0]
                 bos = torch.zeros(batch_size, 1).fill_(BOS_IDX).type(torch.LongTensor).to(DEVICE)
@@ -62,20 +62,20 @@ class Translator(nn.Module):
                 target = Y.contiguous().view(-1)
                 self.scheduler.zero_grad()
                 loss = self.criterion(output, target)
-                loss = loss + loss.item()
+                training_loss += + loss.item()
                 loss.backward()
                 self.scheduler.step()
                 if i==(data_iter.nb_batches-1):
-                    loss = loss/data_iter.nb_batches
-                    self.training_loss.append(float(loss))
+                    training_loss = training_loss/data_iter.nb_batches
+                    self.training_loss_tab.append(float(training_loss))
             if k%50==0: #TODO: remove hardcode
                 torch.save(self.state_dict(), PATH_WEIGHTS)
             if verbose:
-                print(float(loss))
-        return loss
+                print(float(training_loss))
+        return training_loss
 
     def viz_training_loss(self):
-        plt.plot(range(1,len(self.training_loss)+1), self.training_loss)
+        plt.plot(range(1,len(self.training_loss_tab)+1), self.training_loss_tab)
         plt.xlabel('Epoch')
         plt.ylabel('Training loss')
         plt.show()
