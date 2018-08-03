@@ -110,7 +110,7 @@ def main():
         print("Nb batches=",data_iter.nb_batches)
         print("Nb train steps=",nb_train_steps)
         tr.fit(data_iter, nb_epoch=NB_EPOCH)
-        tr.viz_training_loss()
+        tr.plot_training_loss()
 
     if TEST:
         print("=======EVALUATION=======")

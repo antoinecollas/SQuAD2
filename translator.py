@@ -74,7 +74,7 @@ class Translator(nn.Module):
                 print(float(training_loss))
         return training_loss
 
-    def viz_training_loss(self):
+    def plot_training_loss(self):
         plt.plot(range(1,len(self.training_loss_tab)+1), self.training_loss_tab)
         plt.xlabel('Epoch')
         plt.ylabel('Training loss')
