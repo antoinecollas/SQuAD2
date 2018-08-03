@@ -3,5 +3,5 @@ __pycache__/
 *.pyc
 *.sh
 server/
-*.pickle
-weights
+weights_*
+WMT_en_fr/training-giga-fren

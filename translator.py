@@ -7,18 +7,18 @@ import torch.nn.functional as F
 import torch.optim as optim
 from transformer import Transformer
 from constants import *
+import matplotlib.pyplot as plt
 
 # torch.manual_seed(1)
 
-class CustomOptimizer():
-    def __init__(self, parameters, d_model, warmup_steps=4000, betas=(0.9,0.98), eps=1e-9):
-        self.opt = optim.Adam(parameters, betas=betas, eps=eps)
+class PaperScheduler():
+    def __init__(self, optimizer, d_model, warmup_steps=4000):
+        self.opt = optimizer
         self.d_model = d_model
         self.warmup_steps = warmup_steps
         self.step_num = 1
 
     def set_next_lr(self):
-        # self.lr = (self.d_model**(-0.5) * min(self.step_num**(-0.5), self.step_num*(self.warmup_steps**(-1.5))))/10
         self.lr = self.d_model**(-0.5) * min(self.step_num**(-0.5), self.step_num*(self.warmup_steps**(-1.5)))
         for p in self.opt.param_groups:
             p['lr'] = self.lr
@@ -37,33 +37,48 @@ class Translator(nn.Module):
         super(Translator, self).__init__()
         self.Transformer = Transformer(vocabulary_size_in, vocabulary_size_out, share_weights, max_seq, nb_layers, nb_heads, d_model, nb_neurons, dropout)
         self.criterion = nn.CrossEntropyLoss()
-        # print(list(self.Transformer.parameters()))
-        self.optimizer = CustomOptimizer(self.Transformer.parameters(), d_model=d_model, warmup_steps=warmup_steps)
-        # self.amp_handle = amp.init()
+        self.optimizer = optim.Adam(self.Transformer.parameters(), betas=(0.9, 0.98), eps=1e-9) #TODO remove hardcode
+        self.scheduler = PaperScheduler(self.optimizer, d_model=d_model, warmup_steps=warmup_steps)
 
     def count_parameters(self):
         return sum(p.numel() for p in self.parameters() if p.requires_grad)
 
-    def fit(self, X, Y):
+    def fit(self, data_iter, nb_epoch, verbose=True):
         '''
         Arg:
-            X: batch of phrases to translate: tensor(nb_texts, nb_tokens)
-            Y: batch of translations: tensor(nb_texts, nb_tokens)
+            data_iter: iterator which gives two batches: one of source language and one for target language
+            nb_epoch: int
         '''
-        batch_size = X.shape[0]
-        bos = torch.zeros(batch_size, 1).fill_(BOS_IDX).type(torch.LongTensor).to(DEVICE)
-        translation = torch.cat((bos, Y[:,:-1]),dim=1)
-        output = self.Transformer(X, translation)
-        output = output.contiguous().view(-1, output.size(-1))
-        target = Y.contiguous().view(-1)
-        self.optimizer.zero_grad()
-        loss = self.criterion(output, target)
-        # with self.amp_handle.scale_loss(loss, self.optimizer) as scaled_loss:
-        #     scaled_loss.backward()
-        loss.backward()
-        self.optimizer.step()
-        running_loss = loss.item()
-        return running_loss
+        self.training_loss = []
+        for k in range(nb_epoch):
+            print("=======Epoch:=======",k)
+            loss=0
+            for i, (X, Y) in enumerate(data_iter):
+                batch_size = X.shape[0]
+                bos = torch.zeros(batch_size, 1).fill_(BOS_IDX).type(torch.LongTensor).to(DEVICE)
+                translation = torch.cat((bos, Y[:,:-1]),dim=1)
+                output = self.Transformer(X, translation)
+                output = output.contiguous().view(-1, output.size(-1))
+                target = Y.contiguous().view(-1)
+                self.scheduler.zero_grad()
+                loss = self.criterion(output, target)
+                loss = loss + loss.item()
+                loss.backward()
+                self.scheduler.step()
+                if i==(data_iter.nb_batches-1):
+                    loss = loss/data_iter.nb_batches
+                    self.training_loss.append(float(loss))
+            if k%50==0: #TODO: remove hardcode
+                torch.save(self.state_dict(), PATH_WEIGHTS)
+            if verbose:
+                print(float(loss))
+        return loss
+
+    def viz_training_loss(self):
+        plt.plot(range(1,len(self.training_loss)+1), self.training_loss)
+        plt.xlabel('Epoch')
+        plt.ylabel('Training loss')
+        plt.show()
 
     def predict(self, X):
         '''

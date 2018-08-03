@@ -46,60 +46,71 @@ def main():
     test_texts_en = np.delete(test_texts_en, to_remove)
     test_texts_fr = np.delete(test_texts_fr, to_remove)
 
-    def pad_batch(batch, length=None):
-        # t0 = time.time()
-        if length is None:
-            len_max = -float('Inf')
+    class DataIterator(object):
+        def __init__(self, texts_en, texts_fr, batch_size, device):
+            self.current = 0
+            self.texts_en = texts_en
+            self.texts_fr = texts_fr
+            self.batch_size = batch_size
+            self.batches_idx = list(SortishSampler(texts_en, key=lambda x: len(texts_en[x]), bs=self.batch_size))
+            self.device = device
+            self.nb_texts = len(texts_en)
+            self.nb_batches = self.nb_texts//self.batch_size
+            if self.nb_texts % self.batch_size != 0:
+                self.nb_batches+=1
+            if self.nb_batches<2:
+                raise ValueError('There must be at least 2 batches.')
+
+        @staticmethod
+        def pad_batch(batch, length=None):
+            if length is None:
+                len_max = -float('Inf')
+                for phrase in batch:
+                    if len(phrase)>len_max:
+                        len_max = len(phrase)
+            else:
+                len_max=length
+            result = np.zeros((batch.shape[0], len_max))
+            k=0
             for phrase in batch:
-                if len(phrase)>len_max:
-                    len_max = len(phrase)
-        else:
-            len_max=length
-        result = np.zeros((batch.shape[0], len_max))
-        k=0
-        for phrase in batch:
-            for i in range(len(phrase), len_max):
-                phrase.append(PADDING_IDX)
-            result[k] = np.array(phrase)
-            k+=1
-        # t1 = time.time()
-        # print("pad batch time=", t1-t0)
-        return result
-    batches_idx = list(SortishSampler(texts_en, key=lambda x: len(texts_en[x]), bs=BATCH_SIZE))
-    nb_texts = len(texts_en)
-    nb_batches = nb_texts//BATCH_SIZE
-    if nb_texts % BATCH_SIZE != 0:
-        nb_batches+=1
-    if nb_batches<2:
-        raise ValueError('There must be at least 2 batches.')
+                for i in range(len(phrase), len_max):
+                    phrase.append(PADDING_IDX)
+                result[k] = np.array(phrase)
+                k+=1
+            return result
+        
+        def __iter__(self):
+            self.current = 0
+            return self
+
+        def __next__(self):
+            if self.current >= self.nb_batches:
+                raise StopIteration
+            else:
+                l = self.current
+                X_batch = torch.from_numpy(self.pad_batch(self.texts_en[self.batches_idx[l*self.batch_size:(l+1)*self.batch_size]])).type(torch.LongTensor).to(self.device)
+                Y_batch = torch.from_numpy(self.pad_batch(self.texts_fr[self.batches_idx[l*self.batch_size:(l+1)*self.batch_size]])).type(torch.LongTensor).to(self.device)
+                self.current += 1
+                return X_batch, Y_batch
 
     tr = Translator(vocabulary_size_in=len(stoi),vocabulary_size_out=len(stoi), share_weights=SHARE_WEIGHTS, max_seq=MAX_SEQ,nb_layers=NB_LAYERS,nb_heads=NB_HEADS,d_model=D_MODEL,nb_neurons=NB_NEURONS,warmup_steps=WARMUP_STEPS)
+    
     if PRETRAIN:
         tr.load_state_dict(torch.load(PATH_WEIGHTS))
+
     tr.to(DEVICE, TYPE)
     print("Nb parameters=",tr.count_parameters())
+    
     if TRAIN:
         tr.train(True)
+        data_iter = DataIterator(texts_en, texts_fr, BATCH_SIZE, DEVICE)
         print("=======TRAINING=======")
-        nb_train_steps = NB_EPOCH*nb_batches
+        nb_train_steps = NB_EPOCH*data_iter.nb_batches
         print("Nb epochs=",NB_EPOCH)
-        print("Nb batches=",nb_batches)
+        print("Nb batches=",data_iter.nb_batches)
         print("Nb train steps=",nb_train_steps)
-        for k in range(NB_EPOCH):
-            print("=======Epoch:=======",k)
-            loss=0
-            for l in range(nb_batches):
-                # if l%(nb_batches//10)==0:
-                # print("Batch:",l)
-                X_batch = torch.from_numpy(pad_batch(texts_en[batches_idx[l*BATCH_SIZE:(l+1)*BATCH_SIZE]])).type(torch.LongTensor).to(DEVICE)
-                Y_batch = torch.from_numpy(pad_batch(texts_fr[batches_idx[l*BATCH_SIZE:(l+1)*BATCH_SIZE]])).type(torch.LongTensor).to(DEVICE)
-                # t0 = time.time()
-                loss = loss + tr.fit(X_batch, Y_batch)
-                # t1 = time.time()
-                # print("time fit=", t1-t0)
-            if k%50==0:
-                torch.save(tr.state_dict(), PATH_WEIGHTS)
-            print(loss/nb_batches)
+        tr.fit(data_iter, nb_epoch=NB_EPOCH)
+        tr.viz_training_loss()
 
     if TEST:
         print("=======EVALUATION=======")
