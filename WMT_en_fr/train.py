@@ -162,7 +162,7 @@ def main():
         itotok_fr = Itotok(itos)
         for l in range(nb_batches):
             print("Batch:",l)
-            X_batch = torch.from_numpy(pad_batch(test_texts_en[batches_idx[l*PREDICT_BATCH_SIZE:(l+1)*PREDICT_BATCH_SIZE]])).type(torch.LongTensor).to(DEVICE)
+            X_batch = torch.from_numpy(DataIterator.pad_batch(test_texts_en[batches_idx[l*PREDICT_BATCH_SIZE:(l+1)*PREDICT_BATCH_SIZE]])).type(torch.LongTensor).to(DEVICE)
             Y_batch = test_texts_fr[batches_idx[l*PREDICT_BATCH_SIZE:(l+1)*PREDICT_BATCH_SIZE]]
             for i in range(Y_batch.shape[0]):
                 test_references.append([itotok_fr(list(Y_batch[i]))])
