@@ -1,6 +1,5 @@
 import numpy as np
 import math, torch, time
-# from apex import amp
 import torch.autograd as autograd
 import torch.nn as nn
 import torch.nn.functional as F
@@ -28,7 +27,10 @@ class PaperScheduler():
 
     @staticmethod
     def _lr(d_model, step_num, warmup_steps):
-        return d_model**(-0.5) * min(step_num**(-0.5), step_num*(warmup_steps**(-1.5))) / 10
+        #paper
+        # return d_model**(-0.5) * min(step_num**(-0.5), step_num*(warmup_steps**(-1.5)))
+        #tensor2tensor
+        return 2 * min(1, step_num/warmup_steps) * (1/math.sqrt(max(step_num, warmup_steps))) * (1/math.sqrt(d_model))
 
     def set_next_lr(self):
         self.lr = self._lr(self.d_model, self.step_num, self.warmup_steps)

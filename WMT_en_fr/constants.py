@@ -18,7 +18,7 @@ UNKNOW_WORD = '_unk_'
 PADDING_WORD = '_pad_'
 MAX_VOCAB = 1000000
 MIN_FREQ = 0
-NUMP_OPS_BPE = 50
+NUMP_OPS_BPE = 100
 
 #files
 FOLDER = "training-giga-fren/"
@@ -26,7 +26,7 @@ TRAIN_SUFFIX = ".train"
 TEST_SUFFIX = ".test"
 EN_SUFFIX = ".en"
 FR_SUFFIX = ".fr"
-SIZE = "100" #number of pair of phrases
+SIZE = "100_000" #number of pair of phrases
 RAW = FOLDER + "giga-fren.release2.fixed_" + SIZE
 #bpe files
 CODES_FILE = FOLDER + "codes_file_" + SIZE + "_" + str(NUMP_OPS_BPE)
@@ -44,16 +44,16 @@ TEST = PRETRAIN
 PATH_WEIGHTS = "./weights_" + SIZE
 #hyperparameters
 SHARE_WEIGHTS = True
-NB_LAYERS = 2
-NB_HEADS = 4
-D_MODEL = 64
-NB_NEURONS = 128
-WARMUP_STEPS = 100
+NB_LAYERS = 6
+NB_HEADS = 1
+D_MODEL = 512
+NB_NEURONS = 4096
+WARMUP_STEPS = 16000
 
 #constants for training
 TRAIN_SPLIT = 0.8
-NB_EPOCH = 500
-BATCH_SIZE = 10
-MAX_SEQ = 150
+NB_EPOCH = 10000
+BATCH_SIZE = 100
+MAX_SEQ = 256
 
 PREDICT_BATCH_SIZE = 100
