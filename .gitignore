@@ -4,4 +4,5 @@ __pycache__/
 *.sh
 server/
 weights_*
-WMT_en_fr/training-giga-fren
+train/WMT_en_fr/
+train/europarl/
