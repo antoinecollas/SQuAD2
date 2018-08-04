@@ -28,7 +28,7 @@ class PaperScheduler():
 
     @staticmethod
     def _lr(d_model, step_num, warmup_steps):
-        return d_model**(-0.5) * min(step_num**(-0.5), step_num*(warmup_steps**(-1.5)))
+        return d_model**(-0.5) * min(step_num**(-0.5), step_num*(warmup_steps**(-1.5))) / 10
 
     def set_next_lr(self):
         self.lr = self._lr(self.d_model, self.step_num, self.warmup_steps)
@@ -92,7 +92,7 @@ class Translator(nn.Module):
         plt.ylabel('Training loss')
         plt.show()
 
-    def predict(self, X):
+    def translate(self, X):
         '''
         Arg:
             X: batch of phrases to translate: tensor(nb_texts, nb_tokens)
