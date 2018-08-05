@@ -17,6 +17,5 @@ This repository is organized in two parts:
     - prepare_data.py: it prepares europarl data:
         - split into training and test sets, create subword units ...
     - constants.py: all the hyperparameters and files paths
-    - weights_100_000: pretrained model on europarl (more details in results.xlsx)
     - train.py: train/evaluate the model
     - europarl folder: it contains subsets of the dataset europarl (http://www.statmt.org/europarl/)
