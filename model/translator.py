@@ -82,7 +82,7 @@ class Translator(nn.Module):
                 if i==(data_iter.nb_batches-1):
                     training_loss = training_loss/data_iter.nb_batches
                     self.training_loss_tab.append(float(training_loss))
-            if k%50==0: #TODO: remove hardcode
+            if (k+1)%5==0: #TODO: remove hardcode
                 torch.save(self.state_dict(), PATH_WEIGHTS)
             if verbose:
                 print(float(training_loss))
