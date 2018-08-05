@@ -3,6 +3,7 @@ __pycache__/
 *.pyc
 *.sh
 server/
-weights_*
 train/WMT_en_fr/
-train/europarl/
+train/europarl/europarl.*
+train/europarl/BPE.*
+train/europarl/vocab_

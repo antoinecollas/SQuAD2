@@ -41,7 +41,7 @@ PREPROCESSED_ITOS = FOLDER + "itos_" + SIZE + ".pickle"
 TRAIN = False
 PRETRAIN = not TRAIN
 TEST = PRETRAIN
-PATH_WEIGHTS = "./weights_" + SIZE
+PATH_WEIGHTS = FOLDER + "weights_" + SIZE
 #hyperparameters
 SHARE_WEIGHTS = True
 NB_LAYERS = 2
