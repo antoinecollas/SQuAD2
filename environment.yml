@@ -5,17 +5,14 @@ channels:
 - peterjc123
 dependencies:
 - scipy
-- cuda90
-- cudnn
 - numpy
 - ipython
 - jupyter
 - matplotlib
 - numpy
 - pip
-- python>=3.6.0
 - scipy
-- pytorch>=0.4
+- pytorch
 - pip:
   - nltk
   - subword-nmt

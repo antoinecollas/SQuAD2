@@ -3,8 +3,7 @@ __pycache__/
 *.pyc
 *.sh
 server/
-train/WMT_en_fr/
-train/europarl/europarl*
-train/europarl/BPE.*
-train/europarl/vocab_*
-train/europarl/codes_*
+datasets/*
+dist/*
+build/*
+*.egg-info

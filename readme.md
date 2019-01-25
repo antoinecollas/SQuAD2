@@ -18,4 +18,5 @@ This repository is organized in two parts:
         - split into training and test sets, create subword units ...
     - constants.py: all the hyperparameters and files paths
     - train.py: train/evaluate the model
-    - europarl folder: it contains subsets of the dataset europarl (http://www.statmt.org/europarl/)
+
+python setup.py install && python train/prepare_data.py --dev -s datasets/baseline-1M-enfr/baseline-1M.en -t datasets/baseline-1M-enfr/baseline-1M.fr

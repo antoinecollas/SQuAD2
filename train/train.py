@@ -1,26 +1,25 @@
 import sys, pickle, time, math, random, nltk
-sys.path.append("../model")
 import numpy as np
-from translator import *
 from constants import *
 from prepare_data import *
 from sampler import *
 from data_loader import DataLoader
+from transformer.translator import *
 
 def main():
     print("====LOAD PREPROCESSED DATA====")
-    with open(PREPROCESSED_TEXTS+EN_SUFFIX+TRAIN_SUFFIX, 'rb') as f:
+    with open(PREPROCESSED_TEXTS_FILE+SOURCE_SUFFIX+TRAIN_SUFFIX, 'rb') as f:
         texts_en = pickle.load(f)
-    with open(PREPROCESSED_TEXTS+EN_SUFFIX+TEST_SUFFIX, 'rb') as f:
+    with open(PREPROCESSED_TEXTS_FILE+SOURCE_SUFFIX+TEST_SUFFIX, 'rb') as f:
         test_texts_en = pickle.load(f)
-    with open(PREPROCESSED_TEXTS+FR_SUFFIX+TRAIN_SUFFIX, 'rb') as f:
+    with open(PREPROCESSED_TEXTS_FILE+TARGET_SUFFIX+TRAIN_SUFFIX, 'rb') as f:
         texts_fr = pickle.load(f)
-    with open(PREPROCESSED_TEXTS+FR_SUFFIX+TEST_SUFFIX, 'rb') as f:
+    with open(PREPROCESSED_TEXTS_FILE+TARGET_SUFFIX+TEST_SUFFIX, 'rb') as f:
         test_texts_fr = pickle.load(f)
-    with open(PREPROCESSED_STOI, 'rb') as f:
+    with open(PREPROCESSED_STOI_FILE, 'rb') as f:
         dicti = pickle.load(f)
         stoi = collections.defaultdict(unknow_word, dicti)
-    with open(PREPROCESSED_ITOS, 'rb') as f:
+    with open(PREPROCESSED_ITOS_FILE, 'rb') as f:
         itos = pickle.load(f)
 
     print("========REMOVE LONGEST PHRASES========")
@@ -48,7 +47,7 @@ def main():
     tr = Translator(vocabulary_size_in=len(stoi),vocabulary_size_out=len(stoi), share_weights=SHARE_WEIGHTS, max_seq=MAX_SEQ,nb_layers=NB_LAYERS,nb_heads=NB_HEADS,d_model=D_MODEL,nb_neurons=NB_NEURONS,warmup_steps=WARMUP_STEPS)
     
     if PRETRAIN:
-        tr.load_state_dict(torch.load(PATH_WEIGHTS))
+        tr.load_state_dict(torch.load(WEIGHTS_FILE))
 
     tr.to(DEVICE, TYPE)
     print("Nb parameters=",tr.count_parameters())

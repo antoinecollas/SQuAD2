@@ -1,0 +1,20 @@
+name: transformer
+channels:
+- pytorch
+- defaults
+- peterjc123
+dependencies:
+- scipy
+- cuda90
+- cudnn
+- numpy
+- ipython
+- jupyter
+- matplotlib
+- numpy
+- pip
+- scipy
+- pytorch
+- pip:
+  - nltk
+  - subword-nmt
