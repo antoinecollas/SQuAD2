@@ -1,11 +1,35 @@
 import sys, os, time, math, random, argparse, glob
 import numpy as np
-from constants import *
+from constants import Constants
 
 '''
     Prepare data (WMT en_fr) for translation from English to French using byte pair encoding.
     https://arxiv.org/pdf/1508.07909.pdf
 '''
+
+def get_paths(path_source, path_target, constants, hyperparams):
+    folder = os.path.join(os.path.dirname(path_source), hyperparams.SAVE_DATA_FOLDER)
+    if not os.path.exists(folder):
+        os.mkdir(folder)
+    print('Preprocessed files saved in:', folder)
+    filename_source = os.path.basename(path_source)
+    filename_target = os.path.basename(path_target)
+    paths = {
+        'folder_preprocessed': folder,
+        'source': path_source,
+        'target': path_target,
+        'source_train': os.path.join(folder, filename_source+constants.TRAIN_SUFFIX),
+        'source_test': os.path.join(folder, filename_source+constants.TEST_SUFFIX),
+        'target_train': os.path.join(folder, filename_target+constants.TRAIN_SUFFIX),
+        'target_test': os.path.join(folder, filename_target+constants.TEST_SUFFIX),
+        'codes_source': os.path.join(folder, constants.CODES_FILE+constants.SOURCE_SUFFIX),
+        'codes_target': os.path.join(folder, constants.CODES_FILE+constants.TARGET_SUFFIX),
+        'bpe_source_train': os.path.join(folder, constants.BPE_FILE+constants.SOURCE_SUFFIX+constants.TRAIN_SUFFIX),
+        'bpe_target_train': os.path.join(folder, constants.BPE_FILE+constants.TARGET_SUFFIX+constants.TRAIN_SUFFIX),
+        'bpe_source_test': os.path.join(folder, constants.BPE_FILE+constants.SOURCE_SUFFIX+constants.TEST_SUFFIX),
+        'bpe_target_test': os.path.join(folder, constants.BPE_FILE+constants.TARGET_SUFFIX+constants.TEST_SUFFIX)
+    }
+    return paths
 
 def slip_train_test(path_source, path_target, path_source_train, path_source_test, path_target_train, path_target_test, max_nb_phrases, train_split=0.8):
     with open(path_source,"r") as f:
@@ -14,9 +38,9 @@ def slip_train_test(path_source, path_target, path_source_train, path_source_tes
         phrases_tgt = np.array(f.readlines())
 
     nb_phrases = phrases_src.shape[0]
-    nb_train = min(math.floor(nb_phrases*TRAIN_SPLIT), math.floor(max_nb_phrases*TRAIN_SPLIT))
+    nb_train = min(math.floor(nb_phrases*hyperparams.TRAIN_SPLIT), math.floor(max_nb_phrases*hyperparams.TRAIN_SPLIT))
     print("Nb phrases in training set:", nb_train)
-    nb_test = min(math.floor(nb_phrases*(1-TRAIN_SPLIT)), math.floor(max_nb_phrases*(1-TRAIN_SPLIT)))
+    nb_test = min(math.floor(nb_phrases*(1-hyperparams.TRAIN_SPLIT)), math.floor(max_nb_phrases*(1-hyperparams.TRAIN_SPLIT)))
     print("Nb phrases in test set:", nb_test)
     idx = np.arange(nb_phrases)
     random.shuffle(idx)
@@ -56,36 +80,16 @@ def apply_bpe(path, path_codes_file, path_bpe):
     total = t1-t0
     print("time to apply bpe=",total)
 
-def main(path_source, path_target):
-    folder = os.path.join(os.path.dirname(path_source), SAVE_DATA_FOLDER)
-    if not os.path.exists(folder):
-        os.mkdir(folder)
-    print('Preprocessed files saved in:', folder)
-
-    filename_source = os.path.basename(path_source)
-    filename_target = os.path.basename(path_target)
-    paths = {
-        'source': path_source,
-        'target': path_target,
-        'source_train': os.path.join(folder, filename_source+TRAIN_SUFFIX),
-        'source_test': os.path.join(folder, filename_source+TEST_SUFFIX),
-        'target_train': os.path.join(folder, filename_target+TRAIN_SUFFIX),
-        'target_test': os.path.join(folder, filename_target+TEST_SUFFIX),
-        'codes_source': os.path.join(folder, CODES_FILE+SOURCE_SUFFIX),
-        'codes_target': os.path.join(folder, CODES_FILE+TARGET_SUFFIX),
-        'bpe_source_train': os.path.join(folder, BPE_FILE+SOURCE_SUFFIX+TRAIN_SUFFIX),
-        'bpe_target_train': os.path.join(folder, BPE_FILE+TARGET_SUFFIX+TRAIN_SUFFIX),
-        'bpe_source_test': os.path.join(folder, BPE_FILE+SOURCE_SUFFIX+TEST_SUFFIX),
-        'bpe_target_test': os.path.join(folder, BPE_FILE+TARGET_SUFFIX+TEST_SUFFIX)
-    }
+def main(path_source, path_target, constants, hyperparams):
+    paths = get_paths(path_source, path_target, constants, hyperparams)
 
     print("========SPLIT TO TRAIN AND TEST FILES========")
     slip_train_test(paths['source'], paths['target'], paths['source_train'], paths['source_test'], \
-        paths['target_train'], paths['target_test'], MAX_NB_PHRASES, TRAIN_SPLIT)
+        paths['target_train'], paths['target_test'], hyperparams.MAX_NB_PHRASES, hyperparams.TRAIN_SPLIT)
 
     print("========LEARN BPE========")
-    learn_bpe(paths['source_train'], paths['codes_source'], NUMP_OPS_BPE)
-    learn_bpe(paths['target_train'], paths['codes_target'], NUMP_OPS_BPE)
+    learn_bpe(paths['source_train'], paths['codes_source'], hyperparams.NUMP_OPS_BPE)
+    learn_bpe(paths['target_train'], paths['codes_target'], hyperparams.NUMP_OPS_BPE)
 
     print("========APPLY BPE========")
     apply_bpe(paths['source_train'], paths['codes_source'], paths['bpe_source_train'])
@@ -93,7 +97,7 @@ def main(path_source, path_target):
     apply_bpe(paths['source_test'], paths['codes_source'], paths['bpe_source_test'])
     apply_bpe(paths['target_test'], paths['codes_target'], paths['bpe_target_test'])
 
-    for fl in glob.glob(folder+CODES_FILE+'*'):
+    for fl in glob.glob(paths['folder_preprocessed']+constants.CODES_FILE+'*'):
         os.remove(fl)
 
 def is_valid_file(parser, arg):
@@ -117,13 +121,13 @@ if __name__ == "__main__":
     print('')
     if args.dev_mode:
         print('################DEV MODE################')
+        from hyperparams_dev import Hyperparams
+    else:
+        from hyperparams import Hyperparams
+    hyperparams = Hyperparams()
+    constants = Constants()
     print('Source:', args.path_source)
     print('Target:', args.path_target)
     print('')
 
-    if args.dev_mode:
-        from hyperparams_dev import *
-    else:
-        from hyperparams import *
-
-    main(args.path_source, args.path_target)
+    main(args.path_source, args.path_target, constants, hyperparams)

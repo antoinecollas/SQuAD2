@@ -1,115 +1,137 @@
-import sys, pickle, time, math, random, nltk
+import sys, pickle, time, math, random, nltk, argparse, os
 import numpy as np
-from constants import *
-from prepare_data import *
 from sampler import *
 from data_loader import DataLoader
 from transformer.translator import *
 
-def main():
-    print("====LOAD PREPROCESSED DATA====")
-    with open(PREPROCESSED_TEXTS_FILE+SOURCE_SUFFIX+TRAIN_SUFFIX, 'rb') as f:
-        texts_en = pickle.load(f)
-    with open(PREPROCESSED_TEXTS_FILE+SOURCE_SUFFIX+TEST_SUFFIX, 'rb') as f:
-        test_texts_en = pickle.load(f)
-    with open(PREPROCESSED_TEXTS_FILE+TARGET_SUFFIX+TRAIN_SUFFIX, 'rb') as f:
-        texts_fr = pickle.load(f)
-    with open(PREPROCESSED_TEXTS_FILE+TARGET_SUFFIX+TEST_SUFFIX, 'rb') as f:
-        test_texts_fr = pickle.load(f)
-    with open(PREPROCESSED_STOI_FILE, 'rb') as f:
-        dicti = pickle.load(f)
-        stoi = collections.defaultdict(unknow_word, dicti)
-    with open(PREPROCESSED_ITOS_FILE, 'rb') as f:
-        itos = pickle.load(f)
+def get_paths(constants):
+    folder = 'datasets/baseline-1M-enfr/dev'
+    if not os.path.exists(folder):
+        raise ValueError('Folder doesn\'t exist')
+    print('Folder:', folder)
+    filename_source = 'baseline-1M.en'
+    filename_target = 'baseline-1M.fr'
+    paths = {
+        'folder_preprocessed': folder,
+        'bpe_source_train': os.path.join(folder, constants.BPE_FILE+constants.SOURCE_SUFFIX+constants.TRAIN_SUFFIX),
+        'bpe_target_train': os.path.join(folder, constants.BPE_FILE+constants.TARGET_SUFFIX+constants.TRAIN_SUFFIX),
+        'bpe_source_test': os.path.join(folder, constants.BPE_FILE+constants.SOURCE_SUFFIX+constants.TEST_SUFFIX),
+        'bpe_target_test': os.path.join(folder, constants.BPE_FILE+constants.TARGET_SUFFIX+constants.TEST_SUFFIX)
+    }
+    return paths
 
-    print("========REMOVE LONGEST PHRASES========")
-    #we remove french texts which are longer than MAX_SEQ (for memory and computation)
-    def longest(texts_fr):
-        sorted_idx = list(SortSampler(texts_fr, key=lambda x: len(texts_fr[x])))
-        to_remove = []
-        for idx in sorted_idx:
-            length = len(texts_fr[idx])
-            if length <= MAX_SEQ:
-                break
-            else:
-                to_remove.append(idx)
-        to_remove = np.array(to_remove)
-        return to_remove
-    to_remove = longest(texts_fr)
-    print(len(to_remove), "phases removed in training set")
-    texts_en = np.delete(texts_en, to_remove)
-    texts_fr = np.delete(texts_fr, to_remove)
-    to_remove = longest(test_texts_fr)
-    print(len(to_remove), "phases removed in test set")
-    test_texts_en = np.delete(test_texts_en, to_remove)
-    test_texts_fr = np.delete(test_texts_fr, to_remove)
+def main(constants, hyperparams):
+    paths = get_paths(constants)
+    paths_training = {
+        'bpe_source': paths['bpe_source_train'],
+        'bpe_target': paths['bpe_target_train'],
+    }
+    data_training = DataLoader(paths_training, constants, hyperparams)
+    paths_eval = {
+        'bpe_source': paths['bpe_source_test'],
+        'bpe_target': paths['bpe_target_test'],
+    }
+    data_eval = DataLoader(paths_eval, constants, hyperparams)
 
-    tr = Translator(vocabulary_size_in=len(stoi),vocabulary_size_out=len(stoi), share_weights=SHARE_WEIGHTS, max_seq=MAX_SEQ,nb_layers=NB_LAYERS,nb_heads=NB_HEADS,d_model=D_MODEL,nb_neurons=NB_NEURONS,warmup_steps=WARMUP_STEPS)
+    tr = Translator(
+        vocabulary_size_in=len(data_training.stoi),
+        vocabulary_size_out=len(data_training.stoi),
+        constants=constants,
+        share_weights=hyperparams.SHARE_WEIGHTS,
+        max_seq=hyperparams.MAX_SEQ,
+        nb_layers=hyperparams.NB_LAYERS,
+        nb_heads=hyperparams.NB_HEADS,
+        d_model=hyperparams.D_MODEL,
+        nb_neurons=hyperparams.NB_NEURONS,
+        warmup_steps=hyperparams.WARMUP_STEPS)
     
-    if PRETRAIN:
-        tr.load_state_dict(torch.load(WEIGHTS_FILE))
-
-    tr.to(DEVICE, TYPE)
+    tr.to(constants.DEVICE, constants.TYPE)
     print("Nb parameters=",tr.count_parameters())
     
-    if TRAIN:
+    if constants.TRAIN:
         tr.train(True)
-        data_iter = DataLoader(texts_en, texts_fr, BATCH_SIZE, DEVICE)
         print("=======TRAINING=======")
-        nb_train_steps = NB_EPOCH*data_iter.nb_batches
-        print("Nb epochs=",NB_EPOCH)
-        print("Nb batches=",data_iter.nb_batches)
-        print("Nb train steps=",nb_train_steps)
+        nb_train_steps = hyperparams.NB_EPOCH*data_training.nb_batches
+        print("Nb epochs=", hyperparams.NB_EPOCH)
+        print("Nb batches=", data_training.nb_batches)
+        print("Nb train steps=", nb_train_steps)
         # tr.scheduler.plot_lr(nb_train_steps=nb_train_steps)
-        tr.fit(data_iter, nb_epoch=NB_EPOCH)
+        tr.fit(hyperparams.NB_EPOCH, data_training, data_eval)
         tr.plot_training_loss()
 
-    if TEST:
-        def evaluate(texts_src, texts_tgt, verbose=True):
-            data_iter = DataLoader(texts_src, texts_tgt, PREDICT_BATCH_SIZE, DEVICE, pad_Y_batch=False)
-            train_references = []
-            train_hypotheses = []
-            itotok_fr = Itotok(itos)
-            for l, (X_batch, Y_batch) in enumerate(data_iter):
-                print("Batch:",l)
-                for i in range(Y_batch.shape[0]):
-                    train_references.append([itotok_fr(list(Y_batch[i]))])
-                hypotheses = tr.translate(X_batch)
-                for i in range(len(hypotheses)):
-                    train_hypotheses.append(itotok_fr(hypotheses[i]))
+    # if constants.PRETRAIN:
+    #     tr.load_state_dict(torch.load(constants.WEIGHTS_FILE))
 
-            def subwords_to_string(subwords):
-                string = ""
-                for subword in subwords:
-                    if subword[-2:] == "@@":
-                        string += subword[:-2]
-                    elif subword != PADDING_WORD:
-                        string += subword + " "
-                return string
+    # if constants.TEST:
+    #     def evaluate(texts_src, texts_tgt, verbose=True):
+    #         data_iter = DataLoader(texts_src, texts_tgt, constants.PREDICT_BATCH_SIZE, constants.DEVICE, pad_Y_batch=False)
+    #         train_references = []
+    #         train_hypotheses = []
+    #         itotok_fr = Itotok(itos)
+    #         for l, (X_batch, Y_batch) in enumerate(data_iter):
+    #             print("Batch:",l)
+    #             for i in range(Y_batch.shape[0]):
+    #                 train_references.append([itotok_fr(list(Y_batch[i]))])
+    #             hypotheses = tr.translate(X_batch)
+    #             for i in range(len(hypotheses)):
+    #                 train_hypotheses.append(itotok_fr(hypotheses[i]))
 
-            for i, phrases in enumerate(zip(train_references, train_hypotheses)):
-                train_references[i][0] = subwords_to_string(phrases[0][0])
-                train_hypotheses[i] = subwords_to_string(phrases[1])
+    #         def subwords_to_string(subwords):
+    #             string = ""
+    #             for subword in subwords:
+    #                 if subword[-2:] == "@@":
+    #                     string += subword[:-2]
+    #                 elif subword != PADDING_WORD:
+    #                     string += subword + " "
+    #             return string
 
-            if verbose:
-                for i, phrases in enumerate(zip(train_references, train_hypotheses)):
-                    print(phrases[0])
-                    print(phrases[1])
-                    print("")
-                    if i==5:
-                        break
+    #         for i, phrases in enumerate(zip(train_references, train_hypotheses)):
+    #             train_references[i][0] = subwords_to_string(phrases[0][0])
+    #             train_hypotheses[i] = subwords_to_string(phrases[1])
 
-            BLEU = nltk.translate.bleu_score.corpus_bleu(train_references, train_hypotheses)
-            return BLEU
+    #         if verbose:
+    #             for i, phrases in enumerate(zip(train_references, train_hypotheses)):
+    #                 print(phrases[0])
+    #                 print(phrases[1])
+    #                 print("")
+    #                 if i==5:
+    #                     break
+
+    #         BLEU = nltk.translate.bleu_score.corpus_bleu(train_references, train_hypotheses)
+    #         return BLEU
         
-        print("=======EVALUATION=======")
-        print("=======BLEU ON TRAIN SET=======")
-        bleu_train = evaluate(texts_en, texts_fr)
-        print(bleu_train)
+    #     print("=======EVALUATION=======")
+    #     print("=======BLEU ON TRAIN SET=======")
+    #     bleu_train = evaluate(texts_en, texts_fr)
+    #     print(bleu_train)
 
-        print("=======BLEU ON TEST SET=======")
-        bleu_test = evaluate(test_texts_en, test_texts_fr)
-        print(bleu_test)
+    #     print("=======BLEU ON TEST SET=======")
+    #     bleu_test = evaluate(test_texts_en, test_texts_fr)
+    #     print(bleu_test)
+
+def is_valid_file(parser, arg):
+    if not os.path.exists(arg):
+        parser.error("The file %s does not exist!" % arg)
+    else:
+        return arg
 
 if __name__ == "__main__":
-    main()
+    parser = argparse.ArgumentParser(description='Train a machine translation.')
+    # parser.add_argument("-f", dest="folder_dataset", required=True,
+    #                 help="path to the folder contaning all the data",
+    #                 type=lambda x: is_valid_file(parser, x))
+    parser.add_argument('--dev', dest="dev_mode", action='store_true',
+                    help="flag used to debug")
+    args = parser.parse_args()
+
+    print('')
+    from constants import Constants
+    if args.dev_mode:
+        print('################DEV MODE################')
+        from hyperparams_dev import Hyperparams
+    else:
+        from hyperparams import Hyperparams
+    constants = Constants()
+    hyperparams = Hyperparams()
+    
+    main(constants, hyperparams)

@@ -1,26 +1,83 @@
-import torch
-from constants import *
+import torch, sys, collections, os
 from sampler import *
 from multiprocessing import Pool
 
 class DataLoader(object):
-    def __init__(self, texts_src, texts_tgt, batch_size, device, pad_Y_batch=True):
+    def __init__(self, paths, constants, hyperparams, pad_Y_batch=True):
+        print("====LOADING PREPROCESSED DATA====")
+        with open(paths['bpe_source'], 'r') as f:
+            bpe_src = f.readlines()
+        with open(paths['bpe_target'], 'r') as f:
+            bpe_tgt = f.readlines()
+
+        print("====TOKENIZATION====")
+        for i in range(len(bpe_src)):
+            bpe_src[i] = bpe_src[i].split(" ")
+        for i in range(len(bpe_src)):
+            bpe_tgt[i] = bpe_tgt[i].split(" ")
+
+        self.constants = constants
+        self.hyperparams = hyperparams
         self.current = 0
-        self.texts_src = texts_src
-        self.texts_tgt = texts_tgt
-        self.batch_size = batch_size
-        self.batches_idx = list(SortishSampler(texts_src, key=lambda x: len(texts_src[x]), bs=self.batch_size))
-        self.device = device
+        self.bpe_src = bpe_src
+        self.bpe_tgt = bpe_tgt
+        self.batches_idx = list(SortishSampler(bpe_src, key=lambda x: len(bpe_src[x]), bs=self.hyperparams.BATCH_SIZE))
         self.pad_Y_batch = pad_Y_batch
-        self.nb_texts = len(texts_src)
-        self.nb_batches = self.nb_texts//self.batch_size
-        if self.nb_texts % self.batch_size != 0:
+        self.nb_texts = len(bpe_src)
+        self.nb_batches = self.nb_texts//self.hyperparams.BATCH_SIZE
+        if self.nb_texts % self.hyperparams.BATCH_SIZE != 0:
             self.nb_batches+=1
         if self.nb_batches<2:
             raise ValueError('There must be at least 2 batches.')
+        
+        print("====STOI AND ITOS====")
+        self.set_itos()
+        self.set_stoi_from_itos()
 
-    @staticmethod
-    def pad_batch(batch, length=None):
+        print("========REMOVE LONGEST PHRASES========")
+        #we remove phrases which are longer than MAX_SEQ (for memory and computation)
+        self.rm_longest_phrases_tgt()
+        
+    def set_itos(self):
+        phrases = self.bpe_src + self.bpe_tgt
+        freq = collections.Counter(p for o in phrases for p in o)
+        # print("Most common words:", freq.most_common(MAX_VOCAB))
+        itos = [o for o,c in freq.most_common(self.hyperparams.MAX_VOCAB) if c>self.hyperparams.MIN_FREQ]
+        #we add 4 constants
+        for i in range(4):
+            itos.insert(0, '')
+        itos[self.constants.EOS_IDX] = self.constants.EOS_WORD
+        itos[self.constants.BOS_IDX] = self.constants.BOS_WORD
+        itos[self.constants.UNKNOW_WORD_IDX] = self.constants.UNKNOW_WORD
+        itos[self.constants.PADDING_IDX] = self.constants.PADDING_WORD
+        print("Length dictionnary integer to string=", len(itos))
+        #we use a default value when the string doesn't exist in the dictionnary
+        self.itos = itos
+
+    def set_stoi_from_itos(self):
+        res = {v:k for k,v in enumerate(self.itos)}
+        self.stoi = collections.defaultdict(self.unknow_word, res)
+    
+    def unknow_word(self):
+        return self.constants.UNKNOW_WORD_IDX
+
+    def rm_longest_phrases_tgt(self):
+        def longest(phrases):
+            sorted_idx = list(SortSampler(phrases, key=lambda x: len(phrases[x])))
+            to_remove = []
+            for idx in sorted_idx:
+                length = len(phrases[idx])
+                if length <= self.hyperparams.MAX_SEQ:
+                    break
+                else:
+                    to_remove.append(idx)
+            return to_remove
+        to_remove = longest(self.bpe_src)
+        print(len(to_remove), "phrases removed in training set")
+        self.bpe_src = np.delete(self.bpe_src, to_remove)
+        self.bpe_tgt = np.delete(self.bpe_tgt, to_remove)
+
+    def pad_batch(self, batch, length=None):
         if length is None:
             len_max = -float('Inf')
             for phrase in batch:
@@ -32,7 +89,7 @@ class DataLoader(object):
         k=0
         for phrase in batch:
             for i in range(len(phrase), len_max):
-                phrase.append(PADDING_IDX)
+                phrase.append(self.constants.PADDING_IDX)
             result[k] = np.array(phrase)
             k+=1
         return result
@@ -41,101 +98,32 @@ class DataLoader(object):
         self.current = 0
         return self
 
+    def itotok(self, i):
+        return [self.itos[int(o)] for o in i]
+
+    def toktoi(self, tok):
+        return [self.stoi[o] for o in tok]
+
     def __next__(self):
         if self.current >= self.nb_batches:
             raise StopIteration
         else:
             l = self.current
-            X_batch = torch.from_numpy(self.pad_batch(self.texts_src[self.batches_idx[l*self.batch_size:(l+1)*self.batch_size]])).type(torch.LongTensor).to(self.device)
+            src = self.bpe_src[self.batches_idx[l*self.hyperparams.BATCH_SIZE:(l+1)*self.hyperparams.BATCH_SIZE]]
+            with Pool(self.constants.NCPUS) as p:
+                src = np.array(p.map(self.toktoi, src))
+            src = self.pad_batch(src)
+            X_batch = torch.from_numpy(src).type(torch.LongTensor).to(self.constants.DEVICE)
+            
+            tgt = self.bpe_tgt[self.batches_idx[l*self.hyperparams.BATCH_SIZE:(l+1)*self.hyperparams.BATCH_SIZE]]
             if self.pad_Y_batch:
-                Y_batch = torch.from_numpy(self.pad_batch(self.texts_tgt[self.batches_idx[l*self.batch_size:(l+1)*self.batch_size]])).type(torch.LongTensor).to(self.device)
+                with Pool(self.constants.NCPUS) as p:
+                    tgt = np.array(p.map(self.toktoi, tgt))
+                tgt = self.pad_batch(tgt)
+                Y_batch = torch.from_numpy(tgt).type(torch.LongTensor).to(self.constants.DEVICE)
             else:
-                Y_batch = self.texts_tgt[self.batches_idx[l*self.batch_size:(l+1)*self.batch_size]]
+                # Y_batch = self.bpe_tgt[self.batches_idx[l*self.hyperparams.BATCH_SIZE:(l+1)*self.hyperparams.BATCH_SIZE]]
+                raise NotImplementedError
+
             self.current += 1
             return X_batch, Y_batch
-
-def toktoi(stoi, tok):
-    return [stoi[o] for o in tok]
-
-class Toktoi(object):
-    def __init__(self, stoi):
-        self.stoi = stoi
-    def __call__(self, tok):
-        return toktoi(self.stoi, tok)
-
-def itotok(itos, i):
-    return [itos[int(o)] for o in i]
-
-class Itotok(object):
-    def __init__(self, itos):
-        self.itos = itos
-    def __call__(self, i):
-        return itotok(self.itos, i)
-
-def unknow_word():
-    return UNKNOW_WORD_IDX
-
-def stoi_from_itos(itos):
-    res = {v:k for k,v in enumerate(itos)}
-    return collections.defaultdict(unknow_word, res)
-
-def tokenize(filename_bpe_source, filename_bpe_target):
-    t0 = time.time()
-    with open(filename_bpe_source,"r") as f:
-        phrases_source = f.readlines()
-    with open(filename_bpe_target,"r") as f:
-        phrases_target = f.readlines()
-    for i, phrase in enumerate(phrases_source):
-        phrases_source[i] = phrase.split(" ")
-    for i, phrase in enumerate(phrases_target):
-        phrases_target[i] = phrase.split(" ")
-    t1 = time.time()
-    total = t1-t0
-    print("time tokenize (split)=",total)
-    return phrases_source, phrases_target
-
-def get_itos_stoi(phrases_source, phrases_target):
-    phrases = phrases_source + phrases_target
-    t0 = time.time()
-    freq = collections.Counter(p for o in phrases for p in o)
-    # print("Most common words:", freq.most_common(MAX_VOCAB))
-    itos = [o for o,c in freq.most_common(MAX_VOCAB) if c>MIN_FREQ]
-    #we add the 4 constants
-    for i in range(4):
-        itos.insert(0, '')
-    itos[EOS_IDX] = EOS_WORD
-    itos[BOS_IDX] = BOS_WORD
-    itos[UNKNOW_WORD_IDX] = UNKNOW_WORD
-    itos[PADDING_IDX] = PADDING_WORD
-    print("Length dictionnary integer to string=", len(itos))
-    #we use a default value when the string doesn't exist in the dictionnary
-    stoi = stoi_from_itos(itos)
-    t1 = time.time()
-    total = t1-t0
-    return itos, stoi
-
-# print("====STOI AND ITOS====")
-# train_tok_en, train_tok_fr = tokenize(paths['bpe_source_train'], paths['bpe_target_train'])
-# itos, stoi = get_itos_stoi(train_tok_en, train_tok_fr)
-# with open(os.path.join(folder, PREPROCESSED_STOI_FILE), 'wb') as f:
-#     pickle.dump(dict(stoi.items()), f, protocol=pickle.HIGHEST_PROTOCOL)
-# with open(os.path.join(folder, PREPROCESSED_ITOS_FILE), 'wb') as f:
-#     pickle.dump(itos, f, protocol=pickle.HIGHEST_PROTOCOL)
-
-# test_tok_source, test_tok_target = tokenize(paths['bpe_source_test'], paths['bpe_target_test'])
-
-# print("====TOK TO INT SOURCE====")
-# t0 = time.time()
-# train_texts_en = np.array(Pool(NCPUS).map(Toktoi(stoi), train_tok_en))
-# test_texts_en = np.array(Pool(NCPUS).map(Toktoi(stoi), test_tok_source))
-# t1 = time.time()
-# total = t1-t0
-# print("time tok to int=",total)
-
-# print("====TOK TO INT TARGET====")
-# t0 = time.time()
-# train_texts_target = np.array(Pool(NCPUS).map(Toktoi(stoi), train_tok_fr))
-# test_texts_target = np.array(Pool(NCPUS).map(Toktoi(stoi), test_tok_target))
-# t1 = time.time()
-# total = t1-t0
-# print("time tok to int=",total)

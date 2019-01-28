@@ -1,5 +1,5 @@
 import numpy as np
-import math, torch
+import math, torch, sys
 import torch.nn as nn
 import torch.nn.functional as F
 import torch.optim as optim
@@ -7,25 +7,27 @@ import torch.optim as optim
 
 # torch.manual_seed(1)
 
-def positionalEncoding(nb_words, nb_dimensions):
-        X = torch.arange(0, nb_words).to(DEVICE, TYPE)
-        Y = torch.arange(0, nb_dimensions).to(DEVICE, TYPE)
+def positionalEncoding(nb_words, nb_dimensions, device):
+        X = torch.arange(0, nb_words).to(device, torch.float32)
+        Y = torch.arange(0, nb_dimensions).to(device, torch.float32)
         Y, X = torch.meshgrid((Y, X))
         Y, X = Y.t(), X.t()
         TEMP = 10000
-        temp1 = torch.sin(X/(torch.pow(TEMP, (2*Y)/nb_dimensions)))
-        temp2 = torch.cos(X/(torch.pow(TEMP, (2*Y)/nb_dimensions)))
-        Z = torch.zeros((nb_words, nb_dimensions)).to(DEVICE, TYPE)
+        temp = torch.pow(TEMP, (2*Y)/nb_dimensions).to(torch.float32)
+        temp1 = torch.sin(X/temp)
+        temp2 = torch.cos(X/temp)
+        Z = torch.zeros((nb_words, nb_dimensions)).to(device)
         Z[:,0::2] = temp1[:,0::2]
         Z[:,1::2] = temp2[:,1::2]
         return Z
 
 class Embedding(nn.Module):
-    def __init__(self, vocabulary_size, d_model=512):
+    def __init__(self, vocabulary_size, constants, d_model=512):
         super(Embedding, self).__init__()
+        self.constants = constants
         self.vocabulary_size = vocabulary_size
         self.d_model = d_model
-        self.lookup_table = nn.Embedding(self.vocabulary_size, self.d_model, padding_idx=PADDING_IDX)
+        self.lookup_table = nn.Embedding(self.vocabulary_size, self.d_model)
     
     def forward(self, X):
         '''
@@ -36,12 +38,12 @@ class Embedding(nn.Module):
             tensor(nb_texts, nb_tokens, d_model(=size of one token))
         '''
         vectors = self.lookup_table(X)
-        return vectors + positionalEncoding(vectors.size(1), self.d_model)
+        return vectors + positionalEncoding(vectors.size(1), self.d_model, self.constants.DEVICE)
     
     def get_weights(self):
         return self.lookup_table.weight.data
 
-def get_mask(X, Y, avoid_subsequent_info=False):
+def get_mask(X, Y, padding_idx, device, avoid_subsequent_info=False):
     '''
         Args:
         X: tensor(nb_texts, nb_tokens) it represents the initial sequence of tokens (before embedding)
@@ -51,23 +53,18 @@ def get_mask(X, Y, avoid_subsequent_info=False):
         Output:
         tensor(nb_texts, nb_tokens, nb_tokens)
     '''
-    # line = (X==PADDING_IDX).type(torch.FloatTensor)
-    # line[line!=0] = float('-inf')
-    # line = line.reshape(X.size(0), 1, X.size(1)).repeat(1, Y.size(1), 1).transpose(-2,-1)
-    col = (Y==PADDING_IDX).to(DEVICE, TYPE)
+
+    col = (Y==padding_idx).to(device, torch.float32)
     col[col!=0] = float('-inf')
-    # print(col.shape)
-    # print(X.shape)
-    # print(Y.shape)
     col = col.reshape(Y.size(0), 1, Y.size(1)).repeat(1, X.size(1), 1)
     mask1 = col
     if avoid_subsequent_info:
         mask2_shape = (X.size(0), X.size(1), X.size(1))
-        mask2 = torch.triu(torch.ones(mask2_shape[1:])).to(DEVICE, TYPE) - torch.eye(mask2_shape[1]).to(DEVICE, TYPE)
+        mask2 = torch.triu(torch.ones(mask2_shape[1:])).to(device) - torch.eye(mask2_shape[1]).to(device)
         mask2 = mask2.view(1, mask2_shape[1], mask2_shape[2]).expand(mask2_shape)
         mask2[mask2!=0] = float('-inf')
         mask1 = mask1+mask2
-    return mask1.to(DEVICE, TYPE)
+    return mask1.to(device)
 
 def scaled_dot_product_attention(Q, K, V, mask=None):
     dk = K.shape[-1]

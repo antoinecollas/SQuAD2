@@ -4,13 +4,12 @@ import torch.autograd as autograd
 import torch.nn as nn
 import torch.nn.functional as F
 import torch.optim as optim
-from transformer import transformer
-from constants import *
+from transformer.transformer import Transformer
 import matplotlib.pyplot as plt
 
 # torch.manual_seed(1)
 
-class PaperScheduler():
+class Scheduler():
     def __init__(self, optimizer, d_model, warmup_steps=4000):
         self.opt = optimizer
         self.d_model = d_model
@@ -47,29 +46,30 @@ class PaperScheduler():
         self.opt.step()
 
 class Translator(nn.Module):
-    def __init__(self, vocabulary_size_in, vocabulary_size_out, share_weights=True, max_seq=100, nb_layers=6, nb_heads=8, d_model=512, nb_neurons = 2048, dropout=0.1, warmup_steps=4000):
+    def __init__(self, vocabulary_size_in, vocabulary_size_out, constants, share_weights=True, max_seq=100, nb_layers=6, nb_heads=8, d_model=512, nb_neurons = 2048, dropout=0.1, warmup_steps=4000):
         super(Translator, self).__init__()
-        self.Transformer = Transformer(vocabulary_size_in, vocabulary_size_out, share_weights, max_seq, nb_layers, nb_heads, d_model, nb_neurons, dropout)
+        self.Transformer = Transformer(vocabulary_size_in, vocabulary_size_out, constants, share_weights, max_seq, nb_layers, nb_heads, d_model, nb_neurons, dropout)
         self.criterion = nn.CrossEntropyLoss()
         self.optimizer = optim.Adam(self.Transformer.parameters(), betas=(0.9, 0.98), eps=1e-9) #TODO remove hardcode
-        self.scheduler = PaperScheduler(self.optimizer, d_model=d_model, warmup_steps=warmup_steps)
+        self.scheduler = Scheduler(self.optimizer, d_model=d_model, warmup_steps=warmup_steps)
+        self.constants = constants
 
     def count_parameters(self):
         return sum(p.numel() for p in self.parameters() if p.requires_grad)
 
-    def fit(self, data_iter, nb_epoch, verbose=True):
+    def fit(self, nb_epoch, data_training, data_eval, verbose=True):
         '''
         Arg:
-            data_iter: iterator which gives two batches: one of source language and one for target language
+            data_training: iterator which gives two batches: one of source language and one for target language
             nb_epoch: int
         '''
         self.training_loss_tab = []
         for k in range(nb_epoch):
             print("=======Epoch:=======",k)
             training_loss = 0
-            for i, (X, Y) in enumerate(data_iter):
+            for i, (X, Y) in enumerate(data_training):
                 batch_size = X.shape[0]
-                bos = torch.zeros(batch_size, 1).fill_(BOS_IDX).type(torch.LongTensor).to(DEVICE)
+                bos = torch.zeros(batch_size, 1).fill_(self.constants.BOS_IDX).type(torch.LongTensor).to(self.constants.DEVICE)
                 translation = torch.cat((bos, Y[:,:-1]),dim=1)
                 output = self.Transformer(X, translation)
                 output = output.contiguous().view(-1, output.size(-1))
@@ -79,11 +79,14 @@ class Translator(nn.Module):
                 training_loss += + loss.item()
                 loss.backward()
                 self.scheduler.step()
-                if i==(data_iter.nb_batches-1):
-                    training_loss = training_loss/data_iter.nb_batches
+                if i==(data_training.nb_batches-1):
+                    training_loss = training_loss/data_training.nb_batches
                     self.training_loss_tab.append(float(training_loss))
-            if (k+1)%5==0: #TODO: remove hardcode
-                torch.save(self.state_dict(), WEIGHTS_FILE)
+            # if (k+1)%self.constants.EVAL_EVERY_EPOCH==0:
+            #     torch.save(self.state_dict(), self.hyperparams.WEIGHTS_FILE)
+            #     if data_eval:
+            #         print('Eval')
+                
             if verbose:
                 print(float(training_loss))
         return training_loss
@@ -102,8 +105,8 @@ class Translator(nn.Module):
         self.train(False)
         batch_size, max_seq = X.shape
         max_seq += 10 #TODO: remove hard code
-        temp = torch.zeros(batch_size, max_seq).type(torch.LongTensor).to(DEVICE)
-        temp[:,0] = BOS_IDX
+        temp = torch.zeros(batch_size, max_seq).type(torch.LongTensor).to(self.constants.DEVICE)
+        temp[:,0] = self.constants.BOS_IDX
         enc = self.Transformer.forward_encoder(X)
         for j in range(1, max_seq):
             # print(j)
@@ -115,7 +118,7 @@ class Translator(nn.Module):
         for translation in temp:
             temp2 = []
             for i in range(max_seq):
-                if translation[i] == PADDING_IDX:
+                if translation[i] == self.constants.PADDING_IDX:
                     break
                 if i!=0:
                     temp2.append(translation[i])
