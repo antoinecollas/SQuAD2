@@ -4,7 +4,7 @@ class Hyperparams():
     MAX_VOCAB = 1000000
     MIN_FREQ = 0
     NUMP_OPS_BPE = 30000
-    MAX_NB_PHRASES = 100000 #number of pair of phrases
+    MAX_NB_PHRASES = int(1e6) #number of pair of phrases
 
     #model
     SHARE_WEIGHTS = True
