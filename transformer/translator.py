@@ -5,68 +5,49 @@ import torch.nn as nn
 import torch.nn.functional as F
 import torch.optim as optim
 from transformer.transformer import Transformer
-import matplotlib.pyplot as plt
+from tensorboardX import SummaryWriter
+from tqdm import tqdm
+import nltk, sys
 
 # torch.manual_seed(1)
 
 class Scheduler():
-    def __init__(self, optimizer, d_model, warmup_steps=4000):
-        self.opt = optimizer
+    def __init__(self, d_model, warmup_steps=4000):
         self.d_model = d_model
         self.warmup_steps = warmup_steps
-        self.step_num = 1
-
-    def plot_lr(self, nb_train_steps):
-        lrs = [self._lr(self.d_model, step_num, self.warmup_steps) for step_num in range(1, nb_train_steps)]
-        plt.plot(range(1,nb_train_steps), lrs)
-        plt.xlabel('Training step')
-        plt.ylabel('learning rate')
-        plt.title('Learning rate for ' + str(nb_train_steps) + ' training steps.')
-        plt.show()
-
-    @staticmethod
-    def _lr(d_model, step_num, warmup_steps):
-        #paper
-        # return d_model**(-0.5) * min(step_num**(-0.5), step_num*(warmup_steps**(-1.5)))
-        #tensor2tensor
-        return 2 * min(1, step_num/warmup_steps) * (1/math.sqrt(max(step_num, warmup_steps))) * (1/math.sqrt(d_model))
-
-    def set_next_lr(self):
-        self.lr = self._lr(self.d_model, self.step_num, self.warmup_steps)
-        for p in self.opt.param_groups:
-            p['lr'] = self.lr
-        # print("learning rate=", self.lr)
-        self.step_num = self.step_num + 1
-    
-    def zero_grad(self):
-        self.opt.zero_grad()
+        self.step_num = 0
 
     def step(self):
-        self.lr = self.set_next_lr()
-        self.opt.step()
+        #paper
+        # lr = d_model**(-0.5) * min(step_num**(-0.5), step_num*(warmup_steps**(-1.5)))
+        #tensor2tensor
+        lr = 2 * min(1, self.step_num/self.warmup_steps) * (1/math.sqrt(max(self.step_num, self.warmup_steps))) * (1/math.sqrt(self.d_model))
+        self.step_num = self.step_num + 1
+        return lr
 
 class Translator(nn.Module):
-    def __init__(self, vocabulary_size_in, vocabulary_size_out, constants, share_weights=True, max_seq=100, nb_layers=6, nb_heads=8, d_model=512, nb_neurons = 2048, dropout=0.1, warmup_steps=4000):
+    def __init__(self, vocabulary_size_in, vocabulary_size_out, constants, hyperparams):
         super(Translator, self).__init__()
-        self.Transformer = Transformer(vocabulary_size_in, vocabulary_size_out, constants, share_weights, max_seq, nb_layers, nb_heads, d_model, nb_neurons, dropout)
+        self.Transformer = Transformer(vocabulary_size_in, vocabulary_size_out, constants, hyperparams)
         self.criterion = nn.CrossEntropyLoss()
-        self.optimizer = optim.Adam(self.Transformer.parameters(), betas=(0.9, 0.98), eps=1e-9) #TODO remove hardcode
-        self.scheduler = Scheduler(self.optimizer, d_model=d_model, warmup_steps=warmup_steps)
+        self.optimizer = optim.Adam(self.Transformer.parameters(), betas=(0.9, 0.98), eps=1e-9)
+        self.scheduler = Scheduler(d_model=hyperparams.D_MODEL, warmup_steps=hyperparams.WARMUP_STEPS)
         self.constants = constants
+        self.hyperparams = hyperparams
 
     def count_parameters(self):
         return sum(p.numel() for p in self.parameters() if p.requires_grad)
 
-    def fit(self, nb_epoch, data_training, data_eval, verbose=True):
+    def fit(self, nb_epoch, data_training, data_eval=None):
         '''
         Arg:
             data_training: iterator which gives two batches: one of source language and one for target language
             nb_epoch: int
         '''
-        self.training_loss_tab = []
-        for k in range(nb_epoch):
-            print("=======Epoch:=======",k)
-            training_loss = 0
+        writer = SummaryWriter()
+
+        for k in tqdm(range(nb_epoch)):
+            training_loss, gradient_norm = [], []
             for i, (X, Y) in enumerate(data_training):
                 batch_size = X.shape[0]
                 bos = torch.zeros(batch_size, 1).fill_(self.constants.BOS_IDX).type(torch.LongTensor).to(self.constants.DEVICE)
@@ -74,28 +55,57 @@ class Translator(nn.Module):
                 output = self.Transformer(X, translation)
                 output = output.contiguous().view(-1, output.size(-1))
                 target = Y.contiguous().view(-1)
-                self.scheduler.zero_grad()
+                lr = self.scheduler.step()
+                for p in self.optimizer.param_groups:
+                    p['lr'] = lr
+                self.optimizer.zero_grad()
                 loss = self.criterion(output, target)
-                training_loss += + loss.item()
+                training_loss.append(loss.item())
                 loss.backward()
-                self.scheduler.step()
-                if i==(data_training.nb_batches-1):
-                    training_loss = training_loss/data_training.nb_batches
-                    self.training_loss_tab.append(float(training_loss))
-            # if (k+1)%self.constants.EVAL_EVERY_EPOCH==0:
-            #     torch.save(self.state_dict(), self.hyperparams.WEIGHTS_FILE)
-            #     if data_eval:
-            #         print('Eval')
-                
-            if verbose:
-                print(float(training_loss))
-        return training_loss
+                self.optimizer.step()
+                temp = 0
+                for p in self.Transformer.parameters():
+                    temp += torch.sum(p.grad.data**2)
+                temp = np.sqrt(temp.cpu())
+                gradient_norm.append(temp)
 
-    def plot_training_loss(self):
-        plt.plot(range(1,len(self.training_loss_tab)+1), self.training_loss_tab)
-        plt.xlabel('Epoch')
-        plt.ylabel('Training loss')
-        plt.show()
+            torch.save(self.state_dict(), self.constants.WEIGHTS_FILE)
+            writer.add_scalar('0_training_set/loss', np.mean(training_loss), k)
+            writer.add_scalar('0_training_set/gradient_norm', np.mean(gradient_norm), k)
+            writer.add_scalar('2_other/lr', lr, k)
+
+            if data_eval:
+                eval_references = []
+                eval_hypotheses = []
+                for l, (X_batch, Y_batch) in enumerate(data_eval):
+                    for i in range(Y_batch.shape[0]):
+                        eval_references.append(data_eval.itotok(list(Y_batch[i])))
+                    hypotheses = self.translate(X_batch)
+                    for i in range(len(hypotheses)):
+                        eval_hypotheses.append(data_eval.itotok(hypotheses[i]))
+
+                def subwords_to_string(subwords):
+                    string = ""
+                    for subword in subwords:
+                        if subword[-2:] == "@@":
+                            string += subword[:-2]
+                        elif subword != self.constants.PADDING_WORD:
+                            string += subword + " "
+                    return string
+
+                for i, (ref, hyp) in enumerate(zip(eval_references, eval_hypotheses)):
+                    eval_references[i] = subwords_to_string(ref)
+                    eval_hypotheses[i] = subwords_to_string(hyp)
+
+                ex_phrases = ''
+                for i, (ref, hyp) in enumerate(zip(eval_references, eval_hypotheses)):
+                    ex_phrases = ex_phrases + "\n truth: " + ref + "\n prediction: " + hyp + "\n"
+                    if i==4:
+                        break
+
+                BLEU = nltk.translate.bleu_score.corpus_bleu(eval_references, eval_hypotheses)
+                writer.add_scalar('1_eval_set/BLEU', BLEU, k)
+                writer.add_text('examples', ex_phrases, k)
 
     def translate(self, X):
         '''

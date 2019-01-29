@@ -19,9 +19,8 @@ class Hyperparams():
     NB_EPOCH = 1000
     BATCH_SIZE = 120
     MAX_SEQ = 100
+    DROPOUT = 0.1
 
-    #constants for evaluation
-    EVAL_EVERY_EPOCH = 5
     # PREDICT_BATCH_SIZE = 160
 
     # BLEU TRAIN

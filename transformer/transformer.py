@@ -9,16 +9,16 @@ from transformer.decoder import Decoder
 # torch.manual_seed(1)
 
 class Transformer(nn.Module):
-    def __init__(self, vocabulary_size_in, vocabulary_size_out, constants, share_weights=True, max_seq=100, nb_layers=6, nb_heads=8, d_model=512, nb_neurons = 2048, dropout=0.1):
+    def __init__(self, vocabulary_size_in, vocabulary_size_out, constants, hyperparams):
         super(Transformer, self).__init__()
         self.constants = constants
-        self.max_seq = max_seq
-        self.EmbeddingSrc = Embedding(vocabulary_size=vocabulary_size_in, d_model=d_model, constants=constants)
-        self.EmbeddingTgt = Embedding(vocabulary_size=vocabulary_size_out, d_model=d_model, constants=constants)
-        self.Encoder = Encoder(nb_layers=nb_layers, nb_heads=nb_heads, d_model=d_model, nb_neurons=nb_neurons, dropout=dropout)
-        self.Decoder = Decoder(nb_layers=nb_layers, nb_heads=nb_heads, d_model=d_model, nb_neurons=nb_neurons, dropout=dropout)
-        self.Linear = nn.Linear(d_model, vocabulary_size_out, bias=False)
-        if share_weights:
+        self.max_seq = hyperparams.MAX_SEQ
+        self.EmbeddingSrc = Embedding(vocabulary_size=vocabulary_size_in, d_model=hyperparams.D_MODEL, constants=constants)
+        self.EmbeddingTgt = Embedding(vocabulary_size=vocabulary_size_out, d_model=hyperparams.D_MODEL, constants=constants)
+        self.Encoder = Encoder(nb_layers=hyperparams.NB_LAYERS, nb_heads=hyperparams.NB_HEADS, d_model=hyperparams.D_MODEL, nb_neurons=hyperparams.NB_NEURONS, dropout=hyperparams.DROPOUT)
+        self.Decoder = Decoder(nb_layers=hyperparams.NB_LAYERS, nb_heads=hyperparams.NB_HEADS, d_model=hyperparams.D_MODEL, nb_neurons=hyperparams.NB_NEURONS, dropout=hyperparams.DROPOUT)
+        self.Linear = nn.Linear(hyperparams.D_MODEL, vocabulary_size_out, bias=False)
+        if hyperparams.SHARE_WEIGHTS:
             self.EmbeddingSrc.lookup_table.weight = self.Linear.weight
             self.EmbeddingTgt.lookup_table.weight = self.Linear.weight
 

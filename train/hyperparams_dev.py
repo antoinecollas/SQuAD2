@@ -13,6 +13,7 @@ class Hyperparams():
     D_MODEL = 32
     NB_NEURONS = 128
     WARMUP_STEPS = 500
+    DROPOUT = 0.1
 
     #constants for training
     TRAIN_SPLIT = 0.8
@@ -20,7 +21,5 @@ class Hyperparams():
     BATCH_SIZE = 10
     MAX_SEQ = 100
 
-    #constants for evaluation
-    EVAL_EVERY_EPOCH = 5
 
     # PREDICT_BATCH_SIZE = 10

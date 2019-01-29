@@ -3,23 +3,40 @@ from sampler import *
 from multiprocessing import Pool
 from functools import partial
 
+def read_file(path, tokenize):
+    with open(path, 'r') as f:
+        data = f.readlines()
+    if tokenize:
+        for i in range(len(data)):
+            data[i] = data[i].split(" ")
+    return data
+
+def get_itos(bpe_src, bpe_tgt, constants, hyperparams):
+    phrases = bpe_src + bpe_tgt
+    freq = collections.Counter(p for o in phrases for p in o)
+    itos = [o for o,c in freq.most_common(hyperparams.MAX_VOCAB) if c>hyperparams.MIN_FREQ]
+    #we add 4 constants
+    for i in range(4):
+        itos.insert(0, '')
+    itos[constants.EOS_IDX] = constants.EOS_WORD
+    itos[constants.BOS_IDX] = constants.BOS_WORD
+    itos[constants.UNKNOW_WORD_IDX] = constants.UNKNOW_WORD
+    itos[constants.PADDING_IDX] = constants.PADDING_WORD
+    #we use a default value when the string doesn't exist in the dictionnary
+    return itos
+
+def get_stoi_from_itos(itos, constants):
+    res = {v:k for k,v in enumerate(itos)}
+    stoi = collections.defaultdict(partial(int, constants.UNKNOW_WORD_IDX), res)
+    return stoi
+
 class DataLoader(object):
-    def __init__(self, paths, constants, hyperparams, pad_Y_batch=True):
-        with open(paths['bpe_source'], 'r') as f:
-            bpe_src = f.readlines()
-        with open(paths['bpe_target'], 'r') as f:
-            bpe_tgt = f.readlines()
-
-        for i in range(len(bpe_src)):
-            bpe_src[i] = bpe_src[i].split(" ")
-        for i in range(len(bpe_src)):
-            bpe_tgt[i] = bpe_tgt[i].split(" ")
-
+    def __init__(self, bpe_src, bpe_tgt, constants, hyperparams, itos, stoi, pad_Y_batch=True):
+        self.bpe_src = bpe_src
+        self.bpe_tgt = bpe_tgt
         self.constants = constants
         self.hyperparams = hyperparams
         self.current = 0
-        self.bpe_src = bpe_src
-        self.bpe_tgt = bpe_tgt
         self.batches_idx = list(SortishSampler(bpe_src, key=lambda x: len(bpe_src[x]), bs=self.hyperparams.BATCH_SIZE))
         self.pad_Y_batch = pad_Y_batch
         self.nb_texts = len(bpe_src)
@@ -28,31 +45,11 @@ class DataLoader(object):
             self.nb_batches+=1
         if self.nb_batches<2:
             raise ValueError('There must be at least 2 batches.')
-        
-        self.set_itos()
-        self.set_stoi_from_itos()
+        self.itos = itos
+        self.stoi = stoi
 
         #we remove phrases which are longer than MAX_SEQ (for memory and computation)
         self.rm_longest_phrases_tgt()
-        
-    def set_itos(self):
-        phrases = self.bpe_src + self.bpe_tgt
-        freq = collections.Counter(p for o in phrases for p in o)
-        # print("Most common words:", freq.most_common(MAX_VOCAB))
-        itos = [o for o,c in freq.most_common(self.hyperparams.MAX_VOCAB) if c>self.hyperparams.MIN_FREQ]
-        #we add 4 constants
-        for i in range(4):
-            itos.insert(0, '')
-        itos[self.constants.EOS_IDX] = self.constants.EOS_WORD
-        itos[self.constants.BOS_IDX] = self.constants.BOS_WORD
-        itos[self.constants.UNKNOW_WORD_IDX] = self.constants.UNKNOW_WORD
-        itos[self.constants.PADDING_IDX] = self.constants.PADDING_WORD
-        #we use a default value when the string doesn't exist in the dictionnary
-        self.itos = itos
-
-    def set_stoi_from_itos(self):
-        res = {v:k for k,v in enumerate(self.itos)}
-        self.stoi = collections.defaultdict(partial(int, self.constants.UNKNOW_WORD_IDX), res)
     
     def rm_longest_phrases_tgt(self):
         def longest(phrases):
