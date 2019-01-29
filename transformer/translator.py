@@ -1,13 +1,10 @@
 import numpy as np
-import math, torch, time
-import torch.autograd as autograd
+import math, torch, time, nltk, sys
 import torch.nn as nn
-import torch.nn.functional as F
 import torch.optim as optim
 from transformer.transformer import Transformer
 from tensorboardX import SummaryWriter
 from tqdm import tqdm
-import nltk, sys
 
 # torch.manual_seed(1)
 
@@ -38,74 +35,74 @@ class Translator(nn.Module):
     def count_parameters(self):
         return sum(p.numel() for p in self.parameters() if p.requires_grad)
 
-    def fit(self, nb_epoch, data_training, data_eval=None):
+    def fit(self, training_steps, data_training, data_eval=None):
         '''
         Arg:
             data_training: iterator which gives two batches: one of source language and one for target language
-            nb_epoch: int
         '''
         writer = SummaryWriter()
+        training_loss, gradient_norm = [], []
 
-        for k in tqdm(range(nb_epoch)):
-            training_loss, gradient_norm = [], []
-            for i, (X, Y) in enumerate(data_training):
-                batch_size = X.shape[0]
-                bos = torch.zeros(batch_size, 1).fill_(self.constants.BOS_IDX).type(torch.LongTensor).to(self.constants.DEVICE)
-                translation = torch.cat((bos, Y[:,:-1]),dim=1)
-                output = self.Transformer(X, translation)
-                output = output.contiguous().view(-1, output.size(-1))
-                target = Y.contiguous().view(-1)
-                lr = self.scheduler.step()
-                for p in self.optimizer.param_groups:
-                    p['lr'] = lr
-                self.optimizer.zero_grad()
-                loss = self.criterion(output, target)
-                training_loss.append(loss.item())
-                loss.backward()
-                self.optimizer.step()
-                temp = 0
-                for p in self.Transformer.parameters():
-                    temp += torch.sum(p.grad.data**2)
-                temp = np.sqrt(temp.cpu())
-                gradient_norm.append(temp)
+        for i in tqdm(range(training_steps)):
+            X, Y = next(data_training)
+            batch_size = X.shape[0]
+            bos = torch.zeros(batch_size, 1).fill_(self.constants.BOS_IDX).to(self.constants.DEVICE, torch.LongTensor)
+            translation = torch.cat((bos, Y[:,:-1]),dim=1)
+            output = self.Transformer(X, translation)
+            output = output.contiguous().view(-1, output.size(-1))
+            target = Y.contiguous().view(-1)
+            lr = self.scheduler.step()
+            for p in self.optimizer.param_groups:
+                p['lr'] = lr
+            self.optimizer.zero_grad()
+            loss = self.criterion(output, target)
+            training_loss.append(loss.item())
+            loss.backward()
+            self.optimizer.step()
+            temp = 0
+            for p in self.Transformer.parameters():
+                temp += torch.sum(p.grad.data**2)
+            temp = np.sqrt(temp.cpu())
+            gradient_norm.append(temp)
 
-            torch.save(self.state_dict(), self.constants.WEIGHTS_FILE)
-            writer.add_scalar('0_training_set/loss', np.mean(training_loss), k)
-            writer.add_scalar('0_training_set/gradient_norm', np.mean(gradient_norm), k)
-            writer.add_scalar('2_other/lr', lr, k)
+            if ((i+1)%self.hyperparams.EVAL_EVERY_TIMESTEPS)==0:
+                torch.save(self.state_dict(), self.constants.WEIGHTS_FILE)
+                writer.add_scalar('0_training_set/loss', np.mean(training_loss), i)
+                writer.add_scalar('0_training_set/gradient_norm', np.mean(gradient_norm), i)
+                writer.add_scalar('2_other/lr', lr, i)
+                training_loss, gradient_norm = [], []
 
-            if data_eval:
-                eval_references = []
-                eval_hypotheses = []
-                for l, (X_batch, Y_batch) in enumerate(data_eval):
-                    for i in range(Y_batch.shape[0]):
-                        eval_references.append(data_eval.itotok(list(Y_batch[i])))
-                    hypotheses = self.translate(X_batch)
-                    for i in range(len(hypotheses)):
-                        eval_hypotheses.append(data_eval.itotok(hypotheses[i]))
+                if data_eval:
+                    eval_references = []
+                    eval_hypotheses = []
+                    for l, (X_batch, Y_batch) in enumerate(data_eval):
+                        for i in range(Y_batch.shape[0]):
+                            eval_references.append(data_eval.itotok(Y_batch[i]))
+                        hypotheses = self.translate(X_batch)
+                        for i in range(len(hypotheses)):
+                            eval_hypotheses.append(data_eval.itotok(hypotheses[i]))
+                    def subwords_to_string(subwords):
+                        string = ""
+                        for subword in subwords:
+                            if subword[-2:] == "@@":
+                                string += subword[:-2]
+                            elif subword != self.constants.PADDING_WORD:
+                                string += subword + " "
+                        return string
 
-                def subwords_to_string(subwords):
-                    string = ""
-                    for subword in subwords:
-                        if subword[-2:] == "@@":
-                            string += subword[:-2]
-                        elif subword != self.constants.PADDING_WORD:
-                            string += subword + " "
-                    return string
+                    for i, (ref, hyp) in enumerate(zip(eval_references, eval_hypotheses)):
+                        eval_references[i] = subwords_to_string(ref)
+                        eval_hypotheses[i] = subwords_to_string(hyp)
 
-                for i, (ref, hyp) in enumerate(zip(eval_references, eval_hypotheses)):
-                    eval_references[i] = subwords_to_string(ref)
-                    eval_hypotheses[i] = subwords_to_string(hyp)
+                    ex_phrases = ''
+                    for i, (ref, hyp) in enumerate(zip(eval_references, eval_hypotheses)):
+                        ex_phrases = ex_phrases + "\n truth: " + ref + "\n prediction: " + hyp + "\n"
+                        if i==4:
+                            break
 
-                ex_phrases = ''
-                for i, (ref, hyp) in enumerate(zip(eval_references, eval_hypotheses)):
-                    ex_phrases = ex_phrases + "\n truth: " + ref + "\n prediction: " + hyp + "\n"
-                    if i==4:
-                        break
-
-                BLEU = nltk.translate.bleu_score.corpus_bleu(eval_references, eval_hypotheses)
-                writer.add_scalar('1_eval_set/BLEU', BLEU, k)
-                writer.add_text('examples', ex_phrases, k)
+                    BLEU = nltk.translate.bleu_score.corpus_bleu(eval_references, eval_hypotheses)
+                    writer.add_scalar('1_eval_set/BLEU', BLEU, i)
+                    writer.add_text('examples', ex_phrases, i)
 
     def translate(self, X):
         '''
@@ -119,7 +116,6 @@ class Translator(nn.Module):
         temp[:,0] = self.constants.BOS_IDX
         enc = self.Transformer.forward_encoder(X)
         for j in range(1, max_seq):
-            # print(j)
             output = self.Transformer.forward_decoder(X, enc, temp)
             output = torch.argmax(output, dim=-1)
             temp[:,j] = output[:,j-1]

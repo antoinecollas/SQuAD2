@@ -31,13 +31,16 @@ def get_stoi_from_itos(itos, constants):
     return stoi
 
 class DataLoader(object):
-    def __init__(self, bpe_src, bpe_tgt, constants, hyperparams, itos, stoi, pad_Y_batch=True):
+    def __init__(self, bpe_src, bpe_tgt, constants, hyperparams, itos, stoi, infinity_loop=False, pad_Y_batch=True):
         self.bpe_src = bpe_src
         self.bpe_tgt = bpe_tgt
         self.constants = constants
         self.hyperparams = hyperparams
         self.current = 0
         self.batches_idx = list(SortishSampler(bpe_src, key=lambda x: len(bpe_src[x]), bs=self.hyperparams.BATCH_SIZE))
+        self.itos = itos
+        self.stoi = stoi
+        self.infinity_loop = infinity_loop
         self.pad_Y_batch = pad_Y_batch
         self.nb_texts = len(bpe_src)
         self.nb_batches = self.nb_texts//self.hyperparams.BATCH_SIZE
@@ -45,8 +48,6 @@ class DataLoader(object):
             self.nb_batches+=1
         if self.nb_batches<2:
             raise ValueError('There must be at least 2 batches.')
-        self.itos = itos
-        self.stoi = stoi
 
         #we remove phrases which are longer than MAX_SEQ (for memory and computation)
         self.rm_longest_phrases_tgt()
@@ -114,7 +115,10 @@ class DataLoader(object):
                 # Y_batch = self.bpe_tgt[self.batches_idx[l*self.hyperparams.BATCH_SIZE:(l+1)*self.hyperparams.BATCH_SIZE]]
                 raise NotImplementedError
 
-            self.current += 1
+            if self.infinity_loop:
+                self.current = (self.current+1)%self.nb_batches
+            else:
+                self.current = self.current+1
             return X_batch, Y_batch
         
     def __len__(self):

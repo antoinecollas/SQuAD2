@@ -26,8 +26,9 @@ def main(folder, constants, hyperparams):
     bpe_src = read_file(paths['bpe_source_train'], tokenize=True)
     bpe_tgt = read_file(paths['bpe_target_train'], tokenize=True)
     itos = get_itos(bpe_src, bpe_tgt, constants, hyperparams)
+    print('Size vocabulary:', len(itos))
     stoi = get_stoi_from_itos(itos, constants)
-    data_training = DataLoader(bpe_src, bpe_tgt, constants, hyperparams, itos, stoi)
+    data_training = DataLoader(bpe_src, bpe_tgt, constants, hyperparams, itos, stoi, infinity_loop=True)
     print('Nb training phrases:', len(data_training))
 
     bpe_src = read_file(paths['bpe_source_test'], tokenize=True)
@@ -45,11 +46,10 @@ def main(folder, constants, hyperparams):
     print("Nb parameters=",tr.count_parameters())
     print("=======TRAINING=======")
     tr.train(True)
-    nb_train_steps = hyperparams.NB_EPOCH*data_training.nb_batches
-    print("Nb epochs=", hyperparams.NB_EPOCH)
-    print("Nb batches=", data_training.nb_batches)
-    print("Nb train steps=", nb_train_steps)
-    tr.fit(hyperparams.NB_EPOCH,
+    print("Size of one batch=", hyperparams.BATCH_SIZE)
+    print("Nb training steps=", hyperparams.TRAINING_STEPS)
+    tr.fit(
+        hyperparams.TRAINING_STEPS,
         data_training,
         data_eval
     )

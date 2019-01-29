@@ -17,9 +17,9 @@ class Hyperparams():
 
     #constants for training
     TRAIN_SPLIT = 0.8
-    NB_EPOCH = 50
+    TRAINING_STEPS = 1000
     BATCH_SIZE = 10
     MAX_SEQ = 100
 
-
+    EVAL_EVERY_TIMESTEPS = 10
     # PREDICT_BATCH_SIZE = 10
