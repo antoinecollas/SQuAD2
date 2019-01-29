@@ -1,16 +1,15 @@
 import torch, sys, collections, os
 from sampler import *
 from multiprocessing import Pool
+from functools import partial
 
 class DataLoader(object):
     def __init__(self, paths, constants, hyperparams, pad_Y_batch=True):
-        print("====LOADING PREPROCESSED DATA====")
         with open(paths['bpe_source'], 'r') as f:
             bpe_src = f.readlines()
         with open(paths['bpe_target'], 'r') as f:
             bpe_tgt = f.readlines()
 
-        print("====TOKENIZATION====")
         for i in range(len(bpe_src)):
             bpe_src[i] = bpe_src[i].split(" ")
         for i in range(len(bpe_src)):
@@ -30,11 +29,9 @@ class DataLoader(object):
         if self.nb_batches<2:
             raise ValueError('There must be at least 2 batches.')
         
-        print("====STOI AND ITOS====")
         self.set_itos()
         self.set_stoi_from_itos()
 
-        print("========REMOVE LONGEST PHRASES========")
         #we remove phrases which are longer than MAX_SEQ (for memory and computation)
         self.rm_longest_phrases_tgt()
         
@@ -50,17 +47,13 @@ class DataLoader(object):
         itos[self.constants.BOS_IDX] = self.constants.BOS_WORD
         itos[self.constants.UNKNOW_WORD_IDX] = self.constants.UNKNOW_WORD
         itos[self.constants.PADDING_IDX] = self.constants.PADDING_WORD
-        print("Length dictionnary integer to string=", len(itos))
         #we use a default value when the string doesn't exist in the dictionnary
         self.itos = itos
 
     def set_stoi_from_itos(self):
         res = {v:k for k,v in enumerate(self.itos)}
-        self.stoi = collections.defaultdict(self.unknow_word, res)
+        self.stoi = collections.defaultdict(partial(int, self.constants.UNKNOW_WORD_IDX), res)
     
-    def unknow_word(self):
-        return self.constants.UNKNOW_WORD_IDX
-
     def rm_longest_phrases_tgt(self):
         def longest(phrases):
             sorted_idx = list(SortSampler(phrases, key=lambda x: len(phrases[x])))
@@ -73,7 +66,6 @@ class DataLoader(object):
                     to_remove.append(idx)
             return to_remove
         to_remove = longest(self.bpe_src)
-        print(len(to_remove), "phrases removed in training set")
         self.bpe_src = np.delete(self.bpe_src, to_remove)
         self.bpe_tgt = np.delete(self.bpe_tgt, to_remove)
 
@@ -127,3 +119,6 @@ class DataLoader(object):
 
             self.current += 1
             return X_batch, Y_batch
+        
+    def __len__(self):
+        return len(self.bpe_src)
