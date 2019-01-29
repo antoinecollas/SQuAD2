@@ -4,8 +4,8 @@ from sampler import *
 from data_loader import DataLoader
 from transformer.translator import *
 
-def get_paths(constants):
-    folder = 'datasets/baseline-1M-enfr/dev'
+def get_paths(folder, constants, hyperparams):
+    folder = os.path.join(folder, hyperparams.SAVE_DATA_FOLDER)
     if not os.path.exists(folder):
         raise ValueError('Folder doesn\'t exist')
     print('Folder:', folder)
@@ -20,18 +20,21 @@ def get_paths(constants):
     }
     return paths
 
-def main(constants, hyperparams):
-    paths = get_paths(constants)
+def main(folder, constants, hyperparams):
+    paths = get_paths(folder, constants, hyperparams)
     paths_training = {
         'bpe_source': paths['bpe_source_train'],
         'bpe_target': paths['bpe_target_train'],
     }
     data_training = DataLoader(paths_training, constants, hyperparams)
+    print('Nb training phrases:', len(data_training))
+
     paths_eval = {
         'bpe_source': paths['bpe_source_test'],
         'bpe_target': paths['bpe_target_test'],
     }
     data_eval = DataLoader(paths_eval, constants, hyperparams)
+    print('Nb eval phrases:', len(data_eval))
 
     tr = Translator(
         vocabulary_size_in=len(data_training.stoi),
@@ -117,9 +120,9 @@ def is_valid_file(parser, arg):
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description='Train a machine translation.')
-    # parser.add_argument("-f", dest="folder_dataset", required=True,
-    #                 help="path to the folder contaning all the data",
-    #                 type=lambda x: is_valid_file(parser, x))
+    parser.add_argument("-f", dest="folder_dataset", required=True,
+                    help="path to the folder contaning all the data",
+                    type=lambda x: is_valid_file(parser, x))
     parser.add_argument('--dev', dest="dev_mode", action='store_true',
                     help="flag used to debug")
     args = parser.parse_args()
@@ -134,4 +137,4 @@ if __name__ == "__main__":
     constants = Constants()
     hyperparams = Hyperparams()
     
-    main(constants, hyperparams)
+    main(args.folder_dataset, constants, hyperparams)
